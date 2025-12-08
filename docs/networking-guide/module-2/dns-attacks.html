@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 2.6: DNS Attacks - Comprehensive coverage of DNS cache poisoning, spoofing, hijacking, tunneling, and rebinding attacks.">
+    <title>2.6 DNS ATTACKS | MODULE 2 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 2 // SECTION 2.6 // DNS ATTACKS
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 2.6</h1>
+        <p class="site-subtitle">DNS Attacks</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 2</a></li>
+            <li><a href="mots-evil-twin.html" class="nav-link">PREV: MOTS/EVIL TWIN</a></li>
+            <li><a href="tunneling-attacks.html" class="nav-link">NEXT: TUNNELING</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 2</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>2.6 DNS Attacks</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 2.6</p>
+            <h1>DNS Attacks</h1>
+
+            <!-- ============================================
+                 INTRODUCTION
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                The <strong>Domain Name System (DNS)</strong> is critical Internet infrastructure,
+                translating human-readable domain names to IP addresses. DNS was designed without
+                security as a priority, making it vulnerable to numerous attack vectors. Compromising
+                DNS enables traffic redirection, phishing, data exfiltration, and command-and-control
+                communications.
+            </p>
+
+            <p>
+                DNS attacks range from local network spoofing to Internet-scale cache poisoning.
+                Understanding these techniques is essential for both offensive operations and
+                defensive network architecture.
+            </p>
+
+            <!-- ============================================
+                 DNS CACHE POISONING
+                 ============================================ -->
+            <h2>DNS Cache Poisoning</h2>
+
+            <p>
+                <strong>DNS cache poisoning</strong> corrupts a DNS resolver's cache with false
+                records, causing all clients using that resolver to receive incorrect mappings.
+                This attack scales significantly, as one successful poison affects all users of
+                the targeted resolver.
+            </p>
+
+            <h3>Classic Cache Poisoning</h3>
+
+            <div class="diagram">
+                CLASSIC DNS CACHE POISONING:
+
+                1. ATTACKER TRIGGERS LOOKUP:
+
+                ATTACKER RESOLVER AUTH SERVER
+                | | |
+                |---[Query: evil.com]--->| |
+                | |---[Query to AUTH]---->|
+                | | |
+
+                2. ATTACKER FLOODS FAKE RESPONSES:
+
+                | | |
+                |---[Fake Response x N]-->|<--[Legit Response]----| | ID: 0001, bank.com | | | ID: 0002, bank.com | | |
+                    ID: 0003, bank.com | (Race condition!) | | ... | | | (Guess transaction ID)| | | | | 3. IF ATTACKER
+                    WINS RACE: RESOLVER CACHE: +-------------------+----------------------+ | bank.com | 10.0.0.99
+                    (ATTACKER) | | TTL: 86400 | | +-------------------+----------------------+ 4. ALL CLIENTS AFFECTED:
+                    CLIENT RESOLVER | | |---[Query: bank.com]---->|
+                    |<--[10.0.0.99]-----------| (Cached poison) | | |---[Connect to 10.0.0.99]| | (Attacker's server!) |
+                        CHALLENGES: - Must guess Transaction ID (16-bit=65536 possibilities) - Must guess Source Port
+                        (if randomized) - Must respond before legitimate server </div>
+
+                        <h3>Kaminsky Attack</h3>
+
+                        <p>
+                            The <strong>Kaminsky attack</strong> (2008) dramatically improved cache poisoning
+                            effectiveness by targeting non-existent subdomains, allowing unlimited attempts
+                            without waiting for cache expiration.
+                        </p>
+
+                        <div class="diagram">
+                            KAMINSKY ATTACK:
+
+                            INSIGHT: Query for random subdomains = fresh queries each time
+
+                            1. QUERY NON-EXISTENT SUBDOMAIN:
+
+                            ATTACKER RESOLVER AUTH SERVER
+                            | | |
+                            |---[Query: xyz123.bank.com] |
+                            | |---[Query]------------->|
+                            | | |
+
+                            2. FLOOD FAKE RESPONSES WITH DELEGATION:
+
+                            |---[Fake Response]------>| |
+                            | xyz123.bank.com | |
+                            | NS: bank.com | |
+                            | ADDITIONAL SECTION: | |
+                            | bank.com = 10.0.0.99 | |
+                            | | |
+
+                            3. REPEAT WITH NEW RANDOM SUBDOMAIN:
+
+                            |---[Query: abc456.bank.com] |
+                            |---[Fake Response]------>| |
+                            | NS: bank.com | |
+                            | bank.com = 10.0.0.99 | |
+                            | | |
+
+                            ADVANTAGE:
+                            - No waiting for cache TTL expiration
+                            - Unlimited attempts per second
+                            - Target parent domain via glue records
+                            - Birthday attack: ~300 attempts needed
+
+                            MITIGATIONS:
+                            - Source Port Randomization (SPR)
+                            - Transaction ID randomization
+                            - 0x20 encoding (case randomization)
+                            - DNSSEC
+                        </div>
+
+                        <!-- ============================================
+                 DNS SPOOFING
+                 ============================================ -->
+                        <h2>DNS Spoofing</h2>
+
+                        <p>
+                            <strong>DNS spoofing</strong> on a local network intercepts DNS queries and returns
+                            false responses directly to clients. Unlike cache poisoning, this requires a MITM
+                            network position (via ARP spoofing, rogue DHCP, or similar).
+                        </p>
+
+                        <div class="diagram">
+                            LOCAL DNS SPOOFING:
+
+                            1. ATTACKER ESTABLISHES MITM POSITION (via ARP poison)
+
+                            2. VICTIM MAKES DNS QUERY:
+
+                            VICTIM ATTACKER DNS SERVER
+                            | | |
+                            |---[DNS Query: bank.com]->| |
+                            | |---[Forward Query]------->|
+                            | | |
+                            | |<--[Real: 93.184.216.34]--| | | | |<--[Fake: 10.0.0.99]------| (Attacker intercepts | |
+                                (Attacker's IP) | and replaces) | | | | 3. VICTIM CONNECTS TO ATTACKER: | | |---[HTTPS
+                                to 10.0.0.99]-->|
+                                | (Fake bank.com site) |
+                                | |
+
+                                TOOLS:
+                                - dnsspoof (dsniff suite)
+                                - Ettercap DNS plugin
+                                - Bettercap dns.spoof module
+                                - Responder (Windows environments)
+                        </div>
+
+                        <!-- ============================================
+                 DNS HIJACKING
+                 ============================================ -->
+                        <h2>DNS Hijacking</h2>
+
+                        <p>
+                            <strong>DNS hijacking</strong> modifies DNS settings at various points in the
+                            resolution chain. This can occur at the client, router, ISP, or registrar level.
+                        </p>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Hijack Point</th>
+                                    <th>Method</th>
+                                    <th>Scope</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Local (hosts file)</td>
+                                    <td>Modify /etc/hosts or C:\Windows\System32\drivers\etc\hosts</td>
+                                    <td>Single machine</td>
+                                </tr>
+                                <tr>
+                                    <td>Router</td>
+                                    <td>Change DHCP-provided DNS server</td>
+                                    <td>All network clients</td>
+                                </tr>
+                                <tr>
+                                    <td>ISP</td>
+                                    <td>Transparent DNS proxy, NXDOMAIN hijacking</td>
+                                    <td>All ISP customers</td>
+                                </tr>
+                                <tr>
+                                    <td>Registrar</td>
+                                    <td>Compromise registrar account, change NS records</td>
+                                    <td>All domain queries globally</td>
+                                </tr>
+                                <tr>
+                                    <td>Authoritative Server</td>
+                                    <td>Compromise DNS server, modify zone files</td>
+                                    <td>All domain queries</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="diagram">
+                            REGISTRAR-LEVEL HIJACK:
+
+                            1. ATTACKER COMPROMISES REGISTRAR ACCOUNT:
+                            - Phishing registrar credentials
+                            - Social engineering support staff
+                            - Exploiting registrar vulnerabilities
+
+                            2. ATTACKER MODIFIES NS RECORDS:
+
+                            BEFORE: AFTER:
+                            example.com example.com
+                            NS: ns1.legitdns.com NS: ns1.evil.com
+                            NS: ns2.legitdns.com NS: ns2.evil.com
+
+                            3. GLOBAL DNS AFFECTED:
+
+                            RESOLVER ATTACKER'S DNS
+                            | |
+                            |---[Query: example.com]------>|
+                            | |
+                            |<--[Any IP attacker wants]---| | | IMPACT: - Complete control over domain resolution -
+                                Email interception (MX hijack) - SSL certificate issuance (DV validation) - All services
+                                affected globally </div>
+
+                                <!-- ============================================
+                 DNS TUNNELING
+                 ============================================ -->
+                                <h2>DNS Tunneling</h2>
+
+                                <p>
+                                    <strong>DNS tunneling</strong> encodes arbitrary data within DNS queries and
+                                    responses,
+                                    creating a covert communication channel. This technique bypasses firewalls that
+                                    allow
+                                    DNS but block other protocols, enabling data exfiltration and command-and-control.
+                                </p>
+
+                                <div class="diagram">
+                                    DNS TUNNELING MECHANISM:
+
+                                    DATA ENCODING:
+
+                                    Original data: "PASSWORD123"
+                                    Base32 encoded: KBQWY3DPEB3W64TMMQ======
+                                    DNS query: KBQWY3DPEB3W64TMMQ.tunnel.attacker.com
+
+                                    EXFILTRATION FLOW:
+
+                                    COMPROMISED FIREWALL ATTACKER'S
+                                    HOST (Allows DNS) DNS SERVER
+                                    | | |
+                                    |---[DNS Query]------------>|----------------------->|
+                                    | KBQWY3DPEB3W64TMMQ | |
+                                    | .data.attacker.com | (Query logged) |
+                                    | | |
+                                    |<--[DNS Response]----------|<-----------------------| | TXT: "command_here" | | | |
+                                        | C2 COMMUNICATION: COMPROMISED C2 SERVER HOST (attacker.com) | |
+                                        |---[beacon.c2.attacker.com]---------------------->|
+                                        | (Check-in encoded in subdomain) |
+                                        | |
+                                        |<--[TXT: "exec whoami" ]---------------------------| | (Command in response) |
+                                            | | |---[d2hvYW1pX291dHB1dA.c2.attacker.com]--------->|
+                                            | (Command output encoded) |
+                                            | |
+
+                                            BANDWIDTH:
+                                            - ~60 bytes per subdomain label (max 63 chars)
+                                            - ~250 bytes per query (multiple labels)
+                                            - TXT responses: up to 255 bytes per string
+                                            - Throughput: ~10-50 KB/s typical
+                                </div>
+
+                                <div class="technical-block">
+                                    <div class="technical-block-title">DNS Tunneling Tools</div>
+                                    <ul>
+                                        <li><strong>iodine:</strong> IP-over-DNS tunneling</li>
+                                        <li><strong>dnscat2:</strong> C2 over DNS with encryption</li>
+                                        <li><strong>dns2tcp:</strong> TCP tunneling over DNS</li>
+                                        <li><strong>DNSExfiltrator:</strong> Data exfiltration</li>
+                                        <li><strong>Cobalt Strike:</strong> DNS beacon for C2</li>
+                                    </ul>
+                                </div>
+
+                                <!-- ============================================
+                 DNS REBINDING
+                 ============================================ -->
+                                <h2>DNS Rebinding</h2>
+
+                                <p>
+                                    <strong>DNS rebinding</strong> exploits the browser same-origin policy by
+                                    manipulating
+                                    DNS TTL values. The attacker's domain initially resolves to their server, then
+                                    "rebinds" to point to an internal IP, allowing JavaScript to access internal
+                                    resources.
+                                </p>
+
+                                <div class="diagram">
+                                    DNS REBINDING ATTACK:
+
+                                    1. VICTIM VISITS ATTACKER SITE:
+
+                                    VICTIM BROWSER ATTACKER
+                                    | |
+                                    |---[DNS: evil.com]------------------------------>|
+                                    |<--[A: 1.2.3.4 (attacker), TTL=0]----------------| | | |---[HTTP:
+                                        http://evil.com]---------------------->|
+                                        |<--[HTML+JavaScript]------------------------------| | | 2. JAVASCRIPT WAITS FOR
+                                            DNS TTL EXPIRY (seconds) 3. DNS REBINDS TO INTERNAL IP: |---[DNS:
+                                            evil.com]------------------------------>|
+                                            |<--[A: 192.168.1.1 (internal router!)]-----------| | | 4. SAME-ORIGIN
+                                                ALLOWS ACCESS: |---[HTTP: http://evil.com/admin]---------------->|
+                                                | (Actually goes to 192.168.1.1) |
+                                                | (Router admin page!) |
+                                                | |
+                                                |<--[Router admin HTML]---------------------------| | (JavaScript can
+                                                    read this!) | | | |---[POST: change
+                                                    password/settings]------------->|
+                                                    | (JavaScript controls internal device) |
+                                                    | |
+
+                                                    TARGET EXPLOITATION:
+                                                    - Home routers (192.168.1.1)
+                                                    - IoT devices
+                                                    - Internal web applications
+                                                    - Cloud metadata services (169.254.169.254)
+                                </div>
+
+                                <!-- ============================================
+                 DETECTION AND DEFENSE
+                 ============================================ -->
+                                <h2>Detection and Defense</h2>
+
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Attack</th>
+                                            <th>Detection</th>
+                                            <th>Defense</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Cache Poisoning</td>
+                                            <td>Response validation, TTL anomalies</td>
+                                            <td>DNSSEC, SPR, 0x20 encoding</td>
+                                        </tr>
+                                        <tr>
+                                            <td>DNS Spoofing</td>
+                                            <td>ARP monitoring, duplicate responses</td>
+                                            <td>DNSSEC, DNS over HTTPS/TLS</td>
+                                        </tr>
+                                        <tr>
+                                            <td>DNS Hijacking</td>
+                                            <td>External monitoring, DNSSEC validation</td>
+                                            <td>Registrar lock, 2FA, DNSSEC</td>
+                                        </tr>
+                                        <tr>
+                                            <td>DNS Tunneling</td>
+                                            <td>Query length, entropy, TXT record volume</td>
+                                            <td>DNS inspection, whitelist resolvers</td>
+                                        </tr>
+                                        <tr>
+                                            <td>DNS Rebinding</td>
+                                            <td>TTL monitoring, internal resolution</td>
+                                            <td>DNS pinning, host header validation</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div class="technical-block">
+                                    <div class="technical-block-title">DNS Tunneling Detection Indicators</div>
+                                    <ul>
+                                        <li><strong>Long subdomains:</strong> Labels approaching 63-character limit</li>
+                                        <li><strong>High entropy:</strong> Base64/Base32 encoded strings</li>
+                                        <li><strong>Unusual record types:</strong> High TXT, NULL, or CNAME volume</li>
+                                        <li><strong>Query volume:</strong> Excessive queries to single domain</li>
+                                        <li><strong>Response size:</strong> Large TXT responses</li>
+                                        <li><strong>Non-standard characters:</strong> Numeric-heavy subdomains</li>
+                                    </ul>
+                                </div>
+
+                                <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+                                <h2>Section Summary</h2>
+
+                                <p>
+                                    This section covered DNS attack techniques:
+                                </p>
+
+                                <ul>
+                                    <li>Cache poisoning: corrupting resolver caches at scale</li>
+                                    <li>Kaminsky attack: weaponized cache poisoning</li>
+                                    <li>DNS spoofing: local network response injection</li>
+                                    <li>DNS hijacking: registrar, router, or ISP-level redirection</li>
+                                    <li>DNS tunneling: covert data exfiltration and C2</li>
+                                    <li>DNS rebinding: accessing internal networks via browser</li>
+                                </ul>
+
+                                <div class="technical-block">
+                                    <div class="technical-block-title">Key Takeaways</div>
+                                    <ul>
+                                        <li>DNS was designed without security considerations</li>
+                                        <li>Cache poisoning can affect thousands of users</li>
+                                        <li>DNS tunneling bypasses many security controls</li>
+                                        <li>DNSSEC is primary defense but not universally deployed</li>
+                                        <li>DNS monitoring is essential for security operations</li>
+                                    </ul>
+                                </div>
+
+                                <h2>Navigation</h2>
+                                <p>
+                                    <a href="mots-evil-twin.html" class="nav-link" style="display: inline-block;">RETURN
+                                        TO SECTION 2.5</a>
+                                    <span style="margin: 0 1rem; color: var(--text-muted);">|</span>
+                                    <a href="tunneling-attacks.html" class="nav-link"
+                                        style="display: inline-block;">PROCEED TO SECTION 2.7: TUNNELING</a>
+                                </p>
+                        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 2.6: DNS Attacks // Module 2 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

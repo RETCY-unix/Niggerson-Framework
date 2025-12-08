@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 1.2: IP Addressing - Comprehensive technical documentation on IPv4, IPv6, address classes, CIDR notation, and network addressing.">
+    <title>1.2 IP ADDRESSING | MODULE 1 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 1 // SECTION 1.2 // IP ADDRESSING
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 1.2</h1>
+        <p class="site-subtitle">IP Addressing</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 1</a></li>
+            <li><a href="networking-fundamentals.html" class="nav-link">PREV: FUNDAMENTALS</a></li>
+            <li><a href="isp.html" class="nav-link">NEXT: ISP</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 1</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>1.2 IP Addressing</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 1.2</p>
+            <h1>Internet Protocol Addressing</h1>
+
+            <!-- ============================================
+                 INTRODUCTION TO IP ADDRESSING
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                <strong>Internet Protocol (IP) addressing</strong> constitutes the fundamental mechanism by which
+                devices are identified and located within IP-based networks. Every device participating in network
+                communication must possess a unique IP address that distinguishes it from all other devices within
+                the same network scope. This addressing system forms the backbone of all internetwork communication,
+                from local area networks to the global Internet.
+            </p>
+
+            <p>
+                IP addresses serve two primary functions: <strong>host identification</strong> and
+                <strong>location addressing</strong>. Unlike physical MAC addresses which are permanently assigned
+                to hardware, IP addresses are logically assigned and can be changed based on network configuration.
+                This logical assignment enables hierarchical network design, efficient routing, and flexible network
+                reorganization.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">IP Address</div>
+                <div class="definition-desc">
+                    A numerical label assigned to each device connected to a computer network that uses the
+                    Internet Protocol for communication. It serves both as an identifier for the interface
+                    and as a locator address for routing purposes.
+                </div>
+            </div>
+
+            <!-- ============================================
+                 IPv4 ADDRESSING
+                 ============================================ -->
+            <h2>IPv4 Addressing</h2>
+
+            <p>
+                Internet Protocol version 4 (IPv4) has served as the primary addressing system since the early
+                development of internetworking. An IPv4 address consists of 32 bits, typically represented as
+                four decimal octets separated by periods (dotted-decimal notation). Each octet represents 8 bits,
+                with values ranging from 0 to 255.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">IPv4 Address Structure</div>
+                <pre>
+IPv4 Address Length: 32 bits (4 bytes)
+Total Possible Addresses: 2^32 = 4,294,967,296
+
+Binary Format:     11000000.10101000.00000001.00000001
+Decimal Format:    192.168.1.1
+
+Octet Breakdown:
++-----------+-----------+-----------+-----------+
+| Octet 1   | Octet 2   | Octet 3   | Octet 4   |
+| (8 bits)  | (8 bits)  | (8 bits)  | (8 bits)  |
++-----------+-----------+-----------+-----------+
+| 0-255     | 0-255     | 0-255     | 0-255     |
++-----------+-----------+-----------+-----------+
+</pre>
+            </div>
+
+            <h3>Binary to Decimal Conversion</h3>
+
+            <p>
+                Understanding binary-to-decimal conversion is essential for network operations. Each bit position
+                in an octet represents a power of 2, from 2^7 (128) to 2^0 (1). Converting binary to decimal
+                involves summing the values of all positions where the bit is set to 1.
+            </p>
+
+            <div class="diagram">
+                BINARY POSITIONAL VALUES (8-bit octet):
+
+                Position: 7 6 5 4 3 2 1 0
+                Value: 128 64 32 16 8 4 2 1
+                === == == == = = = =
+
+                Example: Convert 11000000 to decimal
+
+                Position: 7 6 5 4 3 2 1 0
+                Bit: 1 1 0 0 0 0 0 0
+                Value: 128 64 -- -- -- -- -- --
+
+                Sum: 128 + 64 = 192
+
+                Therefore: 11000000 (binary) = 192 (decimal)
+            </div>
+
+            <h3>IPv4 Address Classes</h3>
+
+            <p>
+                The original IPv4 addressing scheme defined five address classes (A through E) based on the
+                leading bits of the first octet. This classful addressing system allocated addresses in fixed
+                blocks, which proved inefficient for many organizations.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Class</th>
+                        <th>First Octet Range</th>
+                        <th>Default Mask</th>
+                        <th>Network/Host Bits</th>
+                        <th>Networks</th>
+                        <th>Hosts per Network</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>A</td>
+                        <td>1-126</td>
+                        <td>255.0.0.0</td>
+                        <td>8 / 24</td>
+                        <td>126</td>
+                        <td>16,777,214</td>
+                    </tr>
+                    <tr>
+                        <td>B</td>
+                        <td>128-191</td>
+                        <td>255.255.0.0</td>
+                        <td>16 / 16</td>
+                        <td>16,384</td>
+                        <td>65,534</td>
+                    </tr>
+                    <tr>
+                        <td>C</td>
+                        <td>192-223</td>
+                        <td>255.255.255.0</td>
+                        <td>24 / 8</td>
+                        <td>2,097,152</td>
+                        <td>254</td>
+                    </tr>
+                    <tr>
+                        <td>D</td>
+                        <td>224-239</td>
+                        <td>N/A (Multicast)</td>
+                        <td>N/A</td>
+                        <td>Multicast Groups</td>
+                        <td>N/A</td>
+                    </tr>
+                    <tr>
+                        <td>E</td>
+                        <td>240-255</td>
+                        <td>N/A (Reserved)</td>
+                        <td>N/A</td>
+                        <td>Reserved/Experimental</td>
+                        <td>N/A</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="diagram">
+                IPv4 ADDRESS CLASS IDENTIFICATION (First Octet Binary):
+
+                Class A: 0xxxxxxx (0-127) First bit = 0
+                |
+                +-- Leading bit determines class
+
+                Class B: 10xxxxxx (128-191) First two bits = 10
+                ||
+                ++-- Leading bits determine class
+
+                Class C: 110xxxxx (192-223) First three bits = 110
+                |||
+                +++-- Leading bits determine class
+
+                Class D: 1110xxxx (224-239) First four bits = 1110 (Multicast)
+
+                Class E: 1111xxxx (240-255) First four bits = 1111 (Reserved)
+            </div>
+
+            <h3>Private IP Address Ranges</h3>
+
+            <p>
+                RFC 1918 defines three address ranges reserved for private network use. These addresses are not
+                routable on the public Internet and can be freely used within private networks. Network Address
+                Translation (NAT) enables devices with private addresses to communicate with public Internet
+                resources.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Class</th>
+                        <th>Private Range</th>
+                        <th>CIDR Notation</th>
+                        <th>Total Addresses</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>A</td>
+                        <td>10.0.0.0 - 10.255.255.255</td>
+                        <td>10.0.0.0/8</td>
+                        <td>16,777,216</td>
+                    </tr>
+                    <tr>
+                        <td>B</td>
+                        <td>172.16.0.0 - 172.31.255.255</td>
+                        <td>172.16.0.0/12</td>
+                        <td>1,048,576</td>
+                    </tr>
+                    <tr>
+                        <td>C</td>
+                        <td>192.168.0.0 - 192.168.255.255</td>
+                        <td>192.168.0.0/16</td>
+                        <td>65,536</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Special IPv4 Addresses</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Address/Range</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>0.0.0.0/8</td>
+                            <td>This network (source only)</td>
+                        </tr>
+                        <tr>
+                            <td>127.0.0.0/8</td>
+                            <td>Loopback (localhost)</td>
+                        </tr>
+                        <tr>
+                            <td>169.254.0.0/16</td>
+                            <td>Link-local (APIPA)</td>
+                        </tr>
+                        <tr>
+                            <td>255.255.255.255</td>
+                            <td>Limited broadcast</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ============================================
+                 SUBNET MASKS
+                 ============================================ -->
+            <h2>Subnet Masks</h2>
+
+            <p>
+                A <strong>subnet mask</strong> is a 32-bit number that divides an IP address into network
+                and host portions. The mask uses consecutive 1s to identify network bits and consecutive 0s
+                to identify host bits. The subnet mask determines which portion of an IP address identifies
+                the network and which portion identifies the specific host within that network.
+            </p>
+
+            <div class="diagram">
+                SUBNET MASK OPERATION:
+
+                IP Address: 192.168.1.100
+                11000000.10101000.00000001.01100100
+
+                Subnet Mask: 255.255.255.0
+                11111111.11111111.11111111.00000000
+
+                ================================
+
+                Network ID: 192.168.1.0 (AND operation result)
+                11000000.10101000.00000001.00000000
+                NETWORK PORTION | HOST
+                ========================= | ====
+
+                Host ID: .100
+                00000000.00000000.00000000.01100100
+            </div>
+
+            <p>
+                The AND operation between an IP address and its subnet mask yields the network address.
+                All hosts sharing the same network address belong to the same IP network and can communicate
+                directly without routing.
+            </p>
+
+            <h3>CIDR Notation</h3>
+
+            <p>
+                <strong>Classless Inter-Domain Routing (CIDR)</strong> provides a more flexible method for
+                specifying network addresses than classful addressing. CIDR notation appends a forward slash
+                and the number of network bits to the IP address.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>CIDR</th>
+                        <th>Subnet Mask</th>
+                        <th>Total Hosts</th>
+                        <th>Usable Hosts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>/8</td>
+                        <td>255.0.0.0</td>
+                        <td>16,777,216</td>
+                        <td>16,777,214</td>
+                    </tr>
+                    <tr>
+                        <td>/16</td>
+                        <td>255.255.0.0</td>
+                        <td>65,536</td>
+                        <td>65,534</td>
+                    </tr>
+                    <tr>
+                        <td>/24</td>
+                        <td>255.255.255.0</td>
+                        <td>256</td>
+                        <td>254</td>
+                    </tr>
+                    <tr>
+                        <td>/25</td>
+                        <td>255.255.255.128</td>
+                        <td>128</td>
+                        <td>126</td>
+                    </tr>
+                    <tr>
+                        <td>/26</td>
+                        <td>255.255.255.192</td>
+                        <td>64</td>
+                        <td>62</td>
+                    </tr>
+                    <tr>
+                        <td>/27</td>
+                        <td>255.255.255.224</td>
+                        <td>32</td>
+                        <td>30</td>
+                    </tr>
+                    <tr>
+                        <td>/28</td>
+                        <td>255.255.255.240</td>
+                        <td>16</td>
+                        <td>14</td>
+                    </tr>
+                    <tr>
+                        <td>/29</td>
+                        <td>255.255.255.248</td>
+                        <td>8</td>
+                        <td>6</td>
+                    </tr>
+                    <tr>
+                        <td>/30</td>
+                        <td>255.255.255.252</td>
+                        <td>4</td>
+                        <td>2</td>
+                    </tr>
+                    <tr>
+                        <td>/31</td>
+                        <td>255.255.255.254</td>
+                        <td>2</td>
+                        <td>2 (point-to-point)</td>
+                    </tr>
+                    <tr>
+                        <td>/32</td>
+                        <td>255.255.255.255</td>
+                        <td>1</td>
+                        <td>1 (host route)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Usable Host Calculation</div>
+                <pre>
+Usable Hosts = 2^(32 - CIDR prefix) - 2
+
+The subtraction of 2 accounts for:
+  1. Network Address (all host bits = 0)
+  2. Broadcast Address (all host bits = 1)
+
+Example: /24 network
+  Host bits = 32 - 24 = 8
+  Total addresses = 2^8 = 256
+  Usable hosts = 256 - 2 = 254
+</pre>
+            </div>
+
+            <!-- ============================================
+                 IPv6 ADDRESSING
+                 ============================================ -->
+            <h2>IPv6 Addressing</h2>
+
+            <p>
+                Internet Protocol version 6 (IPv6) was developed to address the exhaustion of IPv4 address
+                space and to provide improvements in routing, security, and auto-configuration capabilities.
+                An IPv6 address consists of 128 bits, providing a vastly larger address space than IPv4.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">IPv6 Address Space</div>
+                <pre>
+IPv6 Address Length: 128 bits (16 bytes)
+Total Possible Addresses: 2^128 = 340,282,366,920,938,463,463,374,607,431,768,211,456
+
+Comparison:
+  IPv4: 4.3 x 10^9 addresses
+  IPv6: 3.4 x 10^38 addresses
+
+That is approximately 340 undecillion addresses, or enough to assign:
+  - 100 addresses per atom on Earth's surface
+  - 4.8 x 10^28 addresses per human on Earth
+</pre>
+            </div>
+
+            <h3>IPv6 Address Format</h3>
+
+            <p>
+                IPv6 addresses are represented as eight groups of four hexadecimal digits, separated by colons.
+                Each group represents 16 bits (2 bytes) of the address.
+            </p>
+
+            <div class="diagram">
+                IPv6 ADDRESS FORMAT:
+
+                Full Format:
+                2001:0db8:85a3:0000:0000:8a2e:0370:7334
+
+                Breakdown:
+                +------+------+------+------+------+------+------+------+
+                | 2001 | 0db8 | 85a3 | 0000 | 0000 | 8a2e | 0370 | 7334 |
+                +------+------+------+------+------+------+------+------+
+                16b 16b 16b 16b 16b 16b 16b 16b
+
+                Total: 8 groups x 16 bits = 128 bits
+            </div>
+
+            <h3>IPv6 Address Simplification Rules</h3>
+
+            <p>
+                IPv6 addresses can be simplified using two rules to reduce representation length:
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Simplification Rules</div>
+                <pre>
+RULE 1: Leading zeros within each group can be omitted
+
+  2001:0db8:0000:0042:0000:0000:0000:0001
+  2001: db8:   0:  42:   0:   0:   0:   1
+
+RULE 2: Consecutive groups of all zeros can be replaced with ::
+        (This can only be done ONCE per address)
+
+  2001:db8:0:42:0:0:0:1
+  2001:db8:0:42::1
+
+Full simplification example:
+  Original:   2001:0db8:0000:0000:0000:0000:0000:0001
+  After R1:   2001:db8:0:0:0:0:0:1
+  After R2:   2001:db8::1
+</pre>
+            </div>
+
+            <h3>IPv6 Address Types</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Prefix</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Global Unicast</td>
+                        <td>2000::/3</td>
+                        <td>Publicly routable addresses (equivalent to public IPv4)</td>
+                    </tr>
+                    <tr>
+                        <td>Link-Local</td>
+                        <td>fe80::/10</td>
+                        <td>Auto-configured addresses for local segment only</td>
+                    </tr>
+                    <tr>
+                        <td>Unique Local</td>
+                        <td>fc00::/7</td>
+                        <td>Private addresses not routed on Internet (similar to RFC 1918)</td>
+                    </tr>
+                    <tr>
+                        <td>Multicast</td>
+                        <td>ff00::/8</td>
+                        <td>One-to-many communication</td>
+                    </tr>
+                    <tr>
+                        <td>Loopback</td>
+                        <td>::1/128</td>
+                        <td>Local host loopback</td>
+                    </tr>
+                    <tr>
+                        <td>Unspecified</td>
+                        <td>::/128</td>
+                        <td>Absence of address</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>IPv6 Address Structure</h3>
+
+            <div class="diagram">
+                IPv6 GLOBAL UNICAST ADDRESS STRUCTURE:
+
+                |<---- 48 bits ---->|<-- 16 bits -->|<------ 64 bits ------>|
+                            +--------------------+---------------+-----------------------+
+                            | Global Routing | Subnet ID | Interface ID |
+                            | Prefix | | |
+                            +--------------------+---------------+-----------------------+
+
+                            Global Routing Prefix: Assigned by ISP/RIR
+                            Subnet ID: Used for internal network segmentation
+                            Interface ID: Identifies the specific interface (often derived from MAC)
+
+                            Example: 2001:0db8:1234:0001:0000:0000:0000:0001/64
+
+                            Global Prefix: 2001:0db8:1234
+                            Subnet ID: 0001
+                            Interface ID: 0000:0000:0000:0001
+                            Prefix Length: /64 (standard for LAN segments)
+            </div>
+
+            <!-- ============================================
+                 IP ADDRESS ASSIGNMENT
+                 ============================================ -->
+            <h2>IP Address Assignment Methods</h2>
+
+            <h3>Static Assignment</h3>
+
+            <p>
+                Static IP addressing involves manually configuring an IP address on each device. This method
+                provides absolute control over addressing but requires manual administration and documentation.
+                Static addressing is typically used for servers, network infrastructure, and devices requiring
+                consistent addressing.
+            </p>
+
+            <h3>Dynamic Assignment (DHCP)</h3>
+
+            <p>
+                <strong>Dynamic Host Configuration Protocol (DHCP)</strong> automates IP address assignment from
+                a configured pool. A DHCP server leases addresses to clients for a specified duration, reducing
+                administrative overhead and enabling efficient address utilization.
+            </p>
+
+            <div class="diagram">
+                DHCP FOUR-WAY HANDSHAKE (DORA Process):
+
+                CLIENT SERVER
+                | |
+                | 1. DHCPDISCOVER (Broadcast) |
+                | "I need an IP address" |
+                |--------------------->--------------------------->|
+                | |
+                | 2. DHCPOFFER (Unicast/Broadcast) |
+                | "Here's an available address: 192.168.1.100" |
+                |<---------------------<---------------------------| | | | 3. DHCPREQUEST (Broadcast) |
+                    | "I accept 192.168.1.100" | |--------------------->--------------------------->|
+                    | |
+                    | 4. DHCPACK (Unicast) |
+                    | "Confirmed. Lease granted for 24 hours" |
+                    |<---------------------<---------------------------| | | After this exchange, the client configures:
+                        - IP Address: 192.168.1.100 - Subnet Mask: 255.255.255.0 - Default Gateway: 192.168.1.1 - DNS
+                        Server: As specified by server </div>
+
+                        <h3>IPv6 Auto-Configuration</h3>
+
+                        <p>
+                            IPv6 supports <strong>Stateless Address Autoconfiguration (SLAAC)</strong>, which enables
+                            devices
+                            to configure their own addresses without a DHCP server. The device generates its interface
+                            ID
+                            (typically from its MAC address) and combines it with the network prefix advertised by
+                            routers.
+                        </p>
+
+                        <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+                        <h2>Section Summary</h2>
+
+                        <p>
+                            This section covered the comprehensive details of IP addressing, the foundation of network
+                            layer communication. Key concepts include:
+                        </p>
+
+                        <ul>
+                            <li>IPv4 32-bit addressing with dotted-decimal notation</li>
+                            <li>IPv4 address classes and their characteristics</li>
+                            <li>Private IP address ranges defined in RFC 1918</li>
+                            <li>Subnet masks and network/host portion identification</li>
+                            <li>CIDR notation for flexible address specification</li>
+                            <li>IPv6 128-bit addressing with hexadecimal notation</li>
+                            <li>IPv6 address types: global unicast, link-local, unique local</li>
+                            <li>Static vs dynamic address assignment methodologies</li>
+                        </ul>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">Key Takeaways</div>
+                            <ul>
+                                <li>IP addresses provide logical identification distinct from physical MAC addresses
+                                </li>
+                                <li>IPv4 exhaustion drove development of IPv6 with vastly expanded address space</li>
+                                <li>Subnet masks determine network boundaries and enable efficient routing</li>
+                                <li>CIDR enables flexible address allocation beyond classful boundaries</li>
+                                <li>Private addressing conserves public address space through NAT</li>
+                                <li>IPv6 simplifies address management through auto-configuration capabilities</li>
+                            </ul>
+                        </div>
+
+                        <h2>Navigation</h2>
+                        <p>
+                            <a href="networking-fundamentals.html" class="nav-link"
+                                style="display: inline-block;">RETURN TO SECTION 1.1</a>
+                            <span style="margin: 0 1rem; color: var(--text-muted);">|</span>
+                            <a href="isp.html" class="nav-link" style="display: inline-block;">PROCEED TO SECTION 1.3:
+                                ISP</a>
+                        </p>
+            </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 1.2: IP Addressing // Module 1 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

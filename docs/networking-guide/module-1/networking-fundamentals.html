@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 1.1: What is Networking - Comprehensive technical explanation of computer networking fundamentals, types, and topologies.">
+    <title>1.1 WHAT IS NETWORKING | MODULE 1 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 1 // SECTION 1.1 // NETWORKING FUNDAMENTALS
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 1.1</h1>
+        <p class="site-subtitle">What is Networking</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 1</a></li>
+            <li><a href="ip-addressing.html" class="nav-link">NEXT: IP ADDRESSING</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 1</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>1.1 What is Networking</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 1.1</p>
+            <h1>What is Networking</h1>
+
+            <!-- ============================================
+                 DEFINITION OF NETWORKING
+                 ============================================ -->
+            <h2>Definition and Core Concepts</h2>
+
+            <p>
+                <strong>Computer networking</strong> is the practice of interconnecting computing devices to enable
+                the exchange of data and resources. At its fundamental level, a network consists of two or more
+                computing devices connected through a transmission medium, utilizing standardized protocols to
+                facilitate communication. This definition, while technically accurate, barely scratches the surface
+                of the complex systems that constitute modern networking infrastructure.
+            </p>
+
+            <p>
+                A network, in operational terms, is a communications system designed to transmit digital information
+                between endpoints with reliability, security, and efficiency. Every component within a network
+                serves a specific purpose in the data transmission chain, from the physical cables carrying electrical
+                signals to the software protocols governing how that data is formatted, addressed, and routed.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">Network</div>
+                <div class="definition-desc">
+                    A system of interconnected computing devices that can exchange data and share resources
+                    through defined communication protocols over physical or wireless transmission media.
+                </div>
+            </div>
+
+            <h3>Fundamental Network Components</h3>
+
+            <p>
+                Every network, regardless of scale or complexity, comprises several essential components that
+                work in concert to enable communication:
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Function</th>
+                        <th>Examples</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>End Devices</td>
+                        <td>Generate and consume network data; serve as source and destination of communications</td>
+                        <td>Computers, servers, smartphones, IoT devices</td>
+                    </tr>
+                    <tr>
+                        <td>Intermediary Devices</td>
+                        <td>Connect end devices and networks; forward data between segments</td>
+                        <td>Switches, routers, access points, firewalls</td>
+                    </tr>
+                    <tr>
+                        <td>Transmission Media</td>
+                        <td>Physical pathway for signal transmission</td>
+                        <td>Copper cable, fiber optic, radio frequency</td>
+                    </tr>
+                    <tr>
+                        <td>Protocols</td>
+                        <td>Standardized rules governing communication format and timing</td>
+                        <td>TCP/IP, HTTP, DNS, DHCP</td>
+                    </tr>
+                    <tr>
+                        <td>Network Services</td>
+                        <td>Applications providing specific network functions</td>
+                        <td>DHCP server, DNS server, authentication services</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- ============================================
+                 NETWORK TYPES
+                 ============================================ -->
+            <h2>Network Classification by Geographic Scope</h2>
+
+            <p>
+                Networks are classified primarily by their geographic coverage area and the scope of connectivity
+                they provide. Understanding these classifications is essential for network planning, security
+                considerations, and resource allocation.
+            </p>
+
+            <h3>Personal Area Network (PAN)</h3>
+
+            <p>
+                A Personal Area Network encompasses the smallest network scope, typically extending no more than
+                a few meters around an individual user. PANs connect personal devices within immediate proximity,
+                enabling data synchronization and resource sharing between a user's devices.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">PAN Specifications</div>
+                <ul>
+                    <li><strong>Range:</strong> Typically 1-10 meters</li>
+                    <li><strong>Technologies:</strong> Bluetooth, USB, Infrared, NFC</li>
+                    <li><strong>Bandwidth:</strong> Varies; Bluetooth 5.0 supports up to 2 Mbps</li>
+                    <li><strong>Use Cases:</strong> Wireless headsets, wearables, peripheral connectivity</li>
+                    <li><strong>Security Considerations:</strong> Proximity-based pairing, encryption required</li>
+                </ul>
+            </div>
+
+            <h3>Local Area Network (LAN)</h3>
+
+            <p>
+                Local Area Networks represent the most common network type in organizational deployments. A LAN
+                connects devices within a limited geographic area such as a building, office floor, or campus.
+                LANs are characterized by high bandwidth, low latency, and single administrative domain control.
+            </p>
+
+            <p>
+                The defining characteristics of a LAN include direct ownership of the network infrastructure,
+                meaning the organization controls all switching and routing equipment within the LAN boundary.
+                This ownership enables granular control over network policies, security measures, and performance
+                optimization.
+            </p>
+
+            <div class="diagram">
+                +------------------------------------------------------------------+
+                | LOCAL AREA NETWORK (LAN) |
+                +------------------------------------------------------------------+
+                | |
+                | [PC-01]----+ +----[PC-04] |
+                | | | |
+                | [PC-02]----+----[SWITCH-01]----[SWITCH-02]----[PC-05] |
+                | | | | | |
+                | [PC-03]----+ | | +----[PC-06] |
+                | | | |
+                | [ROUTER]--------[SERVER] |
+                | | |
+                | [FIREWALL] |
+                | | |
+                | TO WAN/INTERNET |
+                | |
+                +------------------------------------------------------------------+
+            </div>
+
+            <div class="technical-block">
+                <div class="technical-block-title">LAN Specifications</div>
+                <ul>
+                    <li><strong>Range:</strong> Single building to campus (up to several kilometers)</li>
+                    <li><strong>Technologies:</strong> Ethernet (IEEE 802.3), Wi-Fi (IEEE 802.11)</li>
+                    <li><strong>Bandwidth:</strong> 100 Mbps to 100 Gbps (Ethernet); up to 9.6 Gbps (Wi-Fi 6)</li>
+                    <li><strong>Latency:</strong> Sub-millisecond on wired connections</li>
+                    <li><strong>Administration:</strong> Single organizational control</li>
+                </ul>
+            </div>
+
+            <h3>Metropolitan Area Network (MAN)</h3>
+
+            <p>
+                Metropolitan Area Networks span a geographic region larger than a LAN but smaller than a WAN,
+                typically covering a city or metropolitan region. MANs interconnect multiple LANs within a
+                defined metropolitan boundary, often utilizing high-speed fiber optic infrastructure.
+            </p>
+
+            <p>
+                MANs serve critical functions in modern urban infrastructure. Municipal governments, educational
+                systems spanning multiple campuses, and healthcare networks with distributed facilities commonly
+                deploy MAN architectures to maintain high-bandwidth connectivity between sites while retaining
+                network ownership.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">MAN Specifications</div>
+                <ul>
+                    <li><strong>Range:</strong> 5 to 50 kilometers (city-wide)</li>
+                    <li><strong>Technologies:</strong> Fiber optic, Metro Ethernet, SONET/SDH</li>
+                    <li><strong>Bandwidth:</strong> 1 Gbps to 100 Gbps typical</li>
+                    <li><strong>Ownership:</strong> May be private, municipal, or carrier-operated</li>
+                    <li><strong>Use Cases:</strong> City networks, campus interconnection, regional ISP</li>
+                </ul>
+            </div>
+
+            <h3>Wide Area Network (WAN)</h3>
+
+            <p>
+                Wide Area Networks provide connectivity across extensive geographic distances, potentially
+                spanning countries or continents. Unlike LANs where organizations own the infrastructure, WANs
+                typically rely on telecommunications carriers to provide the underlying transport services.
+            </p>
+
+            <p>
+                The fundamental distinction between WAN and other network types lies in the traversal of
+                public telecommunications infrastructure. When data must travel beyond the boundaries of
+                organizationally-owned infrastructure, it enters the WAN domain. This introduces considerations
+                regarding latency, bandwidth costs, security, and service level agreements with carriers.
+            </p>
+
+            <div class="diagram">
+                +------------------------------------------------------------------+
+                | WIDE AREA NETWORK (WAN) |
+                +------------------------------------------------------------------+
+                | |
+                | SITE A SITE B |
+                | [LAN-A] [LAN-B] |
+                | | | |
+                | [ROUTER-A] [ROUTER-B] |
+                | | | |
+                | +----[ISP-A]----[BACKBONE]----[ISP-B]----+ | |
+                | | | |
+                | [BACKBONE] | |
+                | | | |
+                | +----[ISP-C]--------+ | |
+                | | | |
+                | [ROUTER-C] [ROUTER-D] |
+                | | | |
+                | [LAN-C] [LAN-D] |
+                | SITE C SITE D |
+                | |
+                +------------------------------------------------------------------+
+            </div>
+
+            <div class="technical-block">
+                <div class="technical-block-title">WAN Specifications</div>
+                <ul>
+                    <li><strong>Range:</strong> Hundreds to thousands of kilometers (global)</li>
+                    <li><strong>Technologies:</strong> MPLS, Internet VPN, Leased Lines, SD-WAN</li>
+                    <li><strong>Bandwidth:</strong> Varies by service; typically 10 Mbps to 10 Gbps</li>
+                    <li><strong>Latency:</strong> Variable; 20-300ms depending on distance and routing</li>
+                    <li><strong>Ownership:</strong> Carrier-provided transport infrastructure</li>
+                    <li><strong>Cost Model:</strong> Recurring service fees based on bandwidth and SLA</li>
+                </ul>
+            </div>
+
+            <!-- ============================================
+                 NETWORK TOPOLOGIES
+                 ============================================ -->
+            <h2>Network Topologies</h2>
+
+            <p>
+                Network topology describes the arrangement of nodes and connections within a network. Topology
+                can be examined from two perspectives: <strong>physical topology</strong>, which describes the
+                actual layout of cables and devices, and <strong>logical topology</strong>, which describes how
+                data flows through the network regardless of physical arrangement.
+            </p>
+
+            <h3>Bus Topology</h3>
+
+            <p>
+                In a bus topology, all devices connect to a single backbone cable, also known as the bus. Data
+                transmitted by any device propagates along the entire length of the bus, and all devices receive
+                the transmission simultaneously. Only the intended recipient processes the data; all other devices
+                ignore it.
+            </p>
+
+            <div class="diagram">
+                BUS TOPOLOGY:
+
+                [PC-1] [PC-2] [PC-3] [PC-4] [PC-5]
+                | | | | |
+                =====|==========|==========|==========|==========|=====
+                TERMINATOR TERMINATOR
+
+                Data Path: Bidirectional along single backbone
+                Failure Mode: Single point of failure on backbone
+            </div>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Bus Topology Analysis</div>
+                <ul>
+                    <li><strong>Advantages:</strong> Simple installation, minimal cabling required</li>
+                    <li><strong>Disadvantages:</strong> Single point of failure, collision domain spans entire network
+                    </li>
+                    <li><strong>Scalability:</strong> Poor; performance degrades with additional nodes</li>
+                    <li><strong>Historical Use:</strong> 10BASE2 and 10BASE5 Ethernet (largely obsolete)</li>
+                </ul>
+            </div>
+
+            <h3>Star Topology</h3>
+
+            <p>
+                Star topology represents the dominant configuration in modern LAN deployments. All devices
+                connect to a central node, typically a switch or hub. All traffic flows through this central
+                device, which forwards data only to the intended destination port.
+            </p>
+
+            <div class="diagram">
+                STAR TOPOLOGY:
+
+                [PC-1]
+                |
+                [PC-2]-------+-------[PC-3]
+                |
+                [SWITCH]
+                |
+                [PC-4]-------+-------[PC-5]
+                |
+                [PC-6]
+
+                Data Path: All traffic flows through central switch
+                Failure Mode: Central device failure affects all nodes
+            </div>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Star Topology Analysis</div>
+                <ul>
+                    <li><strong>Advantages:</strong> Easy troubleshooting, node failures isolated, scalable</li>
+                    <li><strong>Disadvantages:</strong> Central point of failure, requires more cabling</li>
+                    <li><strong>Scalability:</strong> Excellent with hierarchical expansion</li>
+                    <li><strong>Modern Use:</strong> Standard for Ethernet LAN deployments</li>
+                </ul>
+            </div>
+
+            <h3>Ring Topology</h3>
+
+            <p>
+                In ring topology, each device connects to exactly two neighboring devices, forming a circular
+                data path. Data travels in one direction (or both in dual-ring configurations) around the ring
+                until it reaches its destination. Token-passing protocols commonly govern access in ring networks.
+            </p>
+
+            <div class="diagram">
+                RING TOPOLOGY:
+
+                [PC-1]
+                / \
+                / \
+                [PC-6] [PC-2]
+                | |
+                | |
+                [PC-5]------[PC-3]
+                \ /
+                \ /
+                [PC-4]
+
+                Data Path: Unidirectional or bidirectional around ring
+                Failure Mode: Single node failure breaks ring (unless redundant)
+            </div>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Ring Topology Analysis</div>
+                <ul>
+                    <li><strong>Advantages:</strong> Orderly data flow, predictable performance</li>
+                    <li><strong>Disadvantages:</strong> Complex installation, single failure can disrupt network</li>
+                    <li><strong>Protocols:</strong> Token Ring (IEEE 802.5), FDDI</li>
+                    <li><strong>Modern Use:</strong> Metro networks, IPoA rings, high-availability designs</li>
+                </ul>
+            </div>
+
+            <h3>Mesh Topology</h3>
+
+            <p>
+                Mesh topology provides multiple paths between any two nodes in the network. In a <strong>full
+                    mesh</strong>,
+                every device connects directly to every other device. In a <strong>partial mesh</strong>, some
+                devices connect to multiple devices while others maintain fewer connections. Mesh topologies
+                provide exceptional redundancy and fault tolerance.
+            </p>
+
+            <div class="diagram">
+                FULL MESH TOPOLOGY:
+
+                [R-1]------------[R-2]
+                | \ / |
+                | \ / |
+                | \ / |
+                | \ / |
+                | \ / |
+                | \ / |
+                | \/ |
+                | /\ |
+                | / \ |
+                | / \ |
+                | / \ |
+                | / \ |
+                | / \ |
+                | / \ |
+                [R-3]------------[R-4]
+
+                Full Mesh Links = n(n-1)/2 where n = number of nodes
+                For 4 nodes: 4(4-1)/2 = 6 links
+            </div>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Mesh Topology Analysis</div>
+                <ul>
+                    <li><strong>Advantages:</strong> High redundancy, fault tolerance, load distribution</li>
+                    <li><strong>Disadvantages:</strong> Complex management, expensive (full mesh)</li>
+                    <li><strong>Scalability:</strong> Full mesh scales poorly; partial mesh scales better</li>
+                    <li><strong>Modern Use:</strong> WAN core networks, data center fabrics, wireless mesh</li>
+                </ul>
+            </div>
+
+            <h3>Hybrid Topology</h3>
+
+            <p>
+                Hybrid topologies combine elements of multiple topology types to meet specific requirements.
+                Modern enterprise networks almost universally employ hybrid approaches, utilizing star topology
+                at the access layer, connected via mesh or partial mesh at the distribution and core layers.
+            </p>
+
+            <div class="diagram">
+                HYBRID TOPOLOGY (Star-Mesh):
+
+                CORE LAYER (Mesh)
+                [CORE-1]=====[CORE-2]
+                ||\\ //||
+                || \\ // ||
+                || \/ ||
+                || /\ ||
+                || // \\ ||
+                ||// \\||
+                [DIST-1]=====[DIST-2]
+                | |
+                +--------+--------+ +--------+--------+
+                | | | | | |
+                [SW-1] [SW-2] [SW-3][SW-4] [SW-5] [SW-6]
+                | | | | | |
+                (PCs) (PCs) (PCs)(PCs) (PCs) (PCs)
+
+                ACCESS LAYER (Star topology to end devices)
+            </div>
+
+            <!-- ============================================
+                 NETWORK COMMUNICATION MODELS
+                 ============================================ -->
+            <h2>Network Communication Models</h2>
+
+            <p>
+                The manner in which network devices interact and share resources fundamentally shapes network
+                architecture decisions. Two primary models dominate network design: client-server and peer-to-peer.
+            </p>
+
+            <h3>Client-Server Architecture</h3>
+
+            <p>
+                Client-server architecture defines a clear separation between service providers (servers) and
+                service consumers (clients). Servers maintain resources and provide services upon request; clients
+                initiate requests and consume the provided services. This model centralizes resources, simplifies
+                management, and enables scalable service delivery.
+            </p>
+
+            <div class="diagram">
+                CLIENT-SERVER ARCHITECTURE:
+
+                [SERVER]
+                |
+                SERVICE REQUESTS | SERVICE RESPONSES
+                | | |
+                +----------+----------------+----------------+----------+
+                | | |
+                [CLIENT-1] [CLIENT-2] [CLIENT-3] [CLIENT-4] [CLIENT-5]
+
+                - Clients REQUEST services from servers
+                - Servers RESPOND with requested data/services
+                - Centralized resource management
+                - Scalable through server clustering
+            </div>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Client-Server Characteristics</div>
+                <ul>
+                    <li><strong>Resource Location:</strong> Centralized on dedicated servers</li>
+                    <li><strong>Administration:</strong> Centralized management and control</li>
+                    <li><strong>Security:</strong> Access control enforced at server level</li>
+                    <li><strong>Scalability:</strong> Scale by adding server capacity</li>
+                    <li><strong>Reliability:</strong> Depends on server availability (clustering for HA)</li>
+                    <li><strong>Examples:</strong> Web services, email, databases, file servers</li>
+                </ul>
+            </div>
+
+            <h3>Peer-to-Peer Architecture</h3>
+
+            <p>
+                Peer-to-peer (P2P) networks distribute resources across participating nodes equally. Each device
+                functions simultaneously as both client and server, providing and consuming resources. P2P
+                topology eliminates single points of failure but introduces challenges in management, security,
+                and resource discovery.
+            </p>
+
+            <div class="diagram">
+                PEER-TO-PEER ARCHITECTURE:
+
+                [PEER-1]<==========>[PEER-2]
+                    ^ ^
+                    | |
+                    v v
+                    [PEER-3]<==========>[PEER-4]
+                        ^ ^
+                        | |
+                        +------->[PEER-5]<--+ - Each peer provides AND consumes resources - No centralized server
+                            dependency - Resources distributed across network - Complex resource discovery requirements
+                            </div>
+
+                            <div class="technical-block">
+                                <div class="technical-block-title">Peer-to-Peer Characteristics</div>
+                                <ul>
+                                    <li><strong>Resource Location:</strong> Distributed across all peers</li>
+                                    <li><strong>Administration:</strong> Decentralized; each peer self-managed</li>
+                                    <li><strong>Security:</strong> Complex; no central enforcement point</li>
+                                    <li><strong>Scalability:</strong> Scales with network size (resources grow with
+                                        peers)</li>
+                                    <li><strong>Reliability:</strong> High resilience; no single point of failure</li>
+                                    <li><strong>Examples:</strong> BitTorrent, blockchain networks, some VoIP systems
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- ============================================
+                 DATA TRANSMISSION FUNDAMENTALS
+                 ============================================ -->
+                            <h2>Data Transmission Fundamentals</h2>
+
+                            <p>
+                                Understanding how data traverses a network requires examination of the fundamental
+                                concepts
+                                governing digital communication: how data is encoded into signals, how signals are
+                                transmitted,
+                                and how transmission is coordinated between devices.
+                            </p>
+
+                            <h3>Data Encoding</h3>
+
+                            <p>
+                                Before transmission, digital data must be encoded into a format suitable for the
+                                transmission
+                                medium. For electrical transmission over copper, data is encoded as voltage level
+                                variations.
+                                For optical transmission over fiber, data is encoded as light pulse presence or absence.
+                                For
+                                wireless transmission, data is encoded through modulation of radio frequency signals.
+                            </p>
+
+                            <h3>Transmission Modes</h3>
+
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Mode</th>
+                                        <th>Direction</th>
+                                        <th>Description</th>
+                                        <th>Example</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Simplex</td>
+                                        <td>Unidirectional</td>
+                                        <td>Data flows in one direction only; no return path</td>
+                                        <td>Keyboard to computer, broadcast radio</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Half-Duplex</td>
+                                        <td>Bidirectional (alternating)</td>
+                                        <td>Data can flow in both directions, but not simultaneously</td>
+                                        <td>Walkie-talkie, older Ethernet hubs</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Full-Duplex</td>
+                                        <td>Bidirectional (simultaneous)</td>
+                                        <td>Data flows in both directions simultaneously</td>
+                                        <td>Telephone, modern Ethernet switches</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <h3>Bandwidth and Throughput</h3>
+
+                            <p>
+                                <strong>Bandwidth</strong> represents the maximum theoretical capacity of a network
+                                link, measured
+                                in bits per second (bps). <strong>Throughput</strong> represents the actual achieved
+                                data transfer
+                                rate, which is always less than or equal to bandwidth due to protocol overhead,
+                                congestion, and
+                                other factors.
+                            </p>
+
+                            <div class="definition-block">
+                                <div class="definition-term">Bandwidth vs Throughput</div>
+                                <div class="definition-desc">
+                                    Bandwidth is the theoretical maximum; throughput is the practical reality. A 1 Gbps
+                                    link
+                                    (bandwidth) might achieve 850 Mbps actual data transfer (throughput) due to protocol
+                                    overhead, contention, and network conditions.
+                                </div>
+                            </div>
+
+                            <h3>Latency</h3>
+
+                            <p>
+                                <strong>Latency</strong> measures the time delay for data to traverse from source to
+                                destination.
+                                Total latency comprises multiple components: propagation delay (signal travel time
+                                through media),
+                                transmission delay (time to push bits onto wire), processing delay (device processing
+                                time), and
+                                queuing delay (time waiting in device buffers).
+                            </p>
+
+                            <pre><code>Total Latency = Propagation + Transmission + Processing + Queuing
+
+Example Calculation:
+- Distance: 100 km fiber link
+- Propagation: ~0.5 ms (light speed in fiber ~200,000 km/s)
+- Transmission: Minimal for high-speed links
+- Processing: ~0.1 ms per hop (varies by device)
+- Queuing: Variable based on congestion
+
+Typical end-to-end latency: 1-5 ms for local network
+                            50-150 ms for intercontinental</code></pre>
+
+                            <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+                            <h2>Section Summary</h2>
+
+                            <p>
+                                This section established the foundational understanding of computer networking. Key
+                                concepts
+                                covered include:
+                            </p>
+
+                            <ul>
+                                <li>Network definition and essential components</li>
+                                <li>Network classification by scope: PAN, LAN, MAN, WAN</li>
+                                <li>Physical and logical topology types: bus, star, ring, mesh, hybrid</li>
+                                <li>Communication models: client-server and peer-to-peer architectures</li>
+                                <li>Data transmission fundamentals: encoding, modes, bandwidth, throughput, latency</li>
+                            </ul>
+
+                            <div class="technical-block">
+                                <div class="technical-block-title">Key Takeaways</div>
+                                <ul>
+                                    <li>Networks enable resource sharing and communication between computing devices
+                                    </li>
+                                    <li>Network scope determines technological choices and administrative requirements
+                                    </li>
+                                    <li>Topology selection impacts redundancy, scalability, and troubleshooting
+                                        complexity</li>
+                                    <li>Client-server and P2P models serve different organizational requirements</li>
+                                    <li>Understanding transmission fundamentals is essential for performance analysis
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <h2>Navigation</h2>
+                            <p>
+                                <a href="ip-addressing.html" class="nav-link" style="display: inline-block;">PROCEED TO
+                                    SECTION 1.2: IP ADDRESSING</a>
+                            </p>
+            </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 1.1: What is Networking // Module 1 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

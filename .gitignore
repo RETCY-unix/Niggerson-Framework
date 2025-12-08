@@ -1,0 +1,22 @@
+# Compiled binary
+vanguard
+
+# Build artifacts
+*.o
+*.exe
+build/
+bin/
+
+# Generated payloads
+payloads/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 2.2: ARP Attacks - Comprehensive coverage of ARP poisoning, spoofing, MAC flooding, and Layer 2 exploitation techniques.">
+    <title>2.2 ARP ATTACKS | MODULE 2 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 2 // SECTION 2.2 // ARP ATTACKS
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 2.2</h1>
+        <p class="site-subtitle">ARP Attacks</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 2</a></li>
+            <li><a href="port-scanning.html" class="nav-link">PREV: PORT SCANNING</a></li>
+            <li><a href="layer2-attacks.html" class="nav-link">NEXT: LAYER 2 ATTACKS</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 2</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>2.2 ARP Attacks</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 2.2</p>
+            <h1>ARP Attacks</h1>
+
+            <!-- ============================================
+                 INTRODUCTION
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                The <strong>Address Resolution Protocol (ARP)</strong> was designed without security
+                considerations, making it inherently vulnerable to exploitation. ARP operates on trust,
+                accepting any response without verification. This fundamental weakness enables attackers
+                positioned on the local network segment to manipulate traffic, intercept communications,
+                and establish man-in-the-middle positions.
+            </p>
+
+            <p>
+                ARP attacks are foundational techniques in network penetration testing and are frequently
+                used as precursors to more sophisticated attacks. Understanding these techniques is
+                essential for both offensive operations and network defense.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">ARP Attack</div>
+                <div class="definition-desc">
+                    An exploitation technique that abuses the stateless and unauthenticated nature of
+                    the Address Resolution Protocol to manipulate IP-to-MAC mappings, enabling traffic
+                    interception, denial of service, or session hijacking.
+                </div>
+            </div>
+
+            <!-- ============================================
+                 ARP REVIEW
+                 ============================================ -->
+            <h2>ARP Protocol Vulnerabilities</h2>
+
+            <p>
+                The ARP protocol contains several inherent design weaknesses that make it susceptible
+                to exploitation:
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">ARP Design Vulnerabilities</div>
+                <ul>
+                    <li><strong>No Authentication:</strong> ARP has no mechanism to verify sender identity</li>
+                    <li><strong>Stateless Operation:</strong> Hosts accept replies without sending requests</li>
+                    <li><strong>Trust-Based:</strong> All ARP messages are trusted by default</li>
+                    <li><strong>No Encryption:</strong> ARP packets are transmitted in plaintext</li>
+                    <li><strong>Cache Overwrite:</strong> New ARP data overwrites existing cache entries</li>
+                    <li><strong>Broadcast Nature:</strong> ARP requests reach all hosts on segment</li>
+                </ul>
+            </div>
+
+            <div class="diagram">
+                NORMAL ARP OPERATION:
+
+                HOST A (Victim) HOST B (Target)
+                192.168.1.10 192.168.1.20
+                AA:AA:AA:AA:AA:AA BB:BB:BB:BB:BB:BB
+                | |
+                | ARP Request: "Who has 192.168.1.20?" |
+                | Broadcast to FF:FF:FF:FF:FF:FF |
+                |-------------------------------------------------->|
+                | |
+                | ARP Reply: "192.168.1.20 is at BB:BB:BB..." |
+                |<--------------------------------------------------| | | | Cache: 192.168.1.20=BB:BB:BB:BB:BB:BB | | |
+                    VULNERABILITY: Host A accepts this reply without verification Any host can claim to be 192.168.1.20
+                    </div>
+
+                    <!-- ============================================
+                 ARP SPOOFING
+                 ============================================ -->
+                    <h2>ARP Spoofing</h2>
+
+                    <p>
+                        <strong>ARP spoofing</strong> (also called ARP poisoning) involves sending falsified ARP
+                        messages to associate the attacker's MAC address with a legitimate IP address. This
+                        causes traffic intended for that IP to be sent to the attacker instead.
+                    </p>
+
+                    <div class="diagram">
+                        ARP SPOOFING ATTACK:
+
+                        BEFORE ATTACK:
+
+                        VICTIM GATEWAY ATTACKER
+                        192.168.1.10 192.168.1.1 192.168.1.99
+                        AA:AA:AA:AA:.. GG:GG:GG:GG:.. XX:XX:XX:XX:..
+                        | | |
+                        | Traffic to Gateway | |
+                        |---[dst: GG:GG:GG]------>| |
+                        | | |
+
+                        DURING ATTACK:
+
+                        ATTACKER sends forged ARP replies:
+
+                        To VICTIM: "192.168.1.1 is at XX:XX:XX:XX" (Attacker's MAC)
+                        To GATEWAY: "192.168.1.10 is at XX:XX:XX:XX" (Attacker's MAC)
+
+                        AFTER POISONING:
+
+                        VICTIM ATTACKER GATEWAY
+                        | | |
+                        | Traffic to Gateway | |
+                        |---[dst: XX:XX:XX]------>| (Intercepted) |
+                        | |---[dst: GG:GG:GG]------->|
+                        | | |
+                        | |<---[Traffic to Victim]---| |<---[src: XX:XX:XX]------| | | | | Result: Attacker sees all
+                            traffic between Victim and Gateway Complete Man-in-the-Middle position established </div>
+
+                            <h3>Attack Execution</h3>
+
+                            <div class="technical-block">
+                                <div class="technical-block-title">ARP Spoofing Procedure</div>
+                                <ol>
+                                    <li>Identify target hosts and gateway IP addresses</li>
+                                    <li>Enable IP forwarding on attacker machine</li>
+                                    <li>Send continuous spoofed ARP replies to both targets</li>
+                                    <li>Maintain poisoning (ARP cache entries expire)</li>
+                                    <li>Intercept, analyze, or modify forwarded traffic</li>
+                                </ol>
+                            </div>
+
+                            <div class="diagram">
+                                ARP SPOOFING PACKET STRUCTURE:
+
+                                FORGED ARP REPLY (Sent to Victim):
+
+                                Ethernet Header:
+                                +------------------+------------------+--------+
+                                | Dst: AA:AA:AA:.. | Src: XX:XX:XX:.. | 0x0806 |
+                                | (Victim MAC) | (Attacker MAC) | (ARP) |
+                                +------------------+------------------+--------+
+
+                                ARP Payload:
+                                +-----------------------------------------------+
+                                | Hardware Type: 1 (Ethernet) |
+                                | Protocol Type: 0x0800 (IPv4) |
+                                | Opcode: 2 (Reply) |
+                                | Sender MAC: XX:XX:XX:XX:XX:XX (Attacker) |
+                                | Sender IP: 192.168.1.1 (Gateway - FORGED) |
+                                | Target MAC: AA:AA:AA:AA:AA:AA (Victim) |
+                                | Target IP: 192.168.1.10 (Victim) |
+                                +-----------------------------------------------+
+
+                                This packet tells Victim: "Gateway is at Attacker's MAC"
+                            </div>
+
+                            <!-- ============================================
+                 GRATUITOUS ARP
+                 ============================================ -->
+                            <h2>Gratuitous ARP Attacks</h2>
+
+                            <p>
+                                <strong>Gratuitous ARP</strong> is an unsolicited ARP announcement where a host
+                                broadcasts
+                                its own IP-to-MAC mapping. This legitimate feature is used for IP conflict detection and
+                                network failover, but attackers exploit it to poison caches proactively.
+                            </p>
+
+                            <div class="diagram">
+                                GRATUITOUS ARP:
+
+                                LEGITIMATE USE:
+                                - Host announces its IP/MAC binding to network
+                                - Updates switches and hosts after failover
+                                - Detects IP address conflicts
+
+                                STRUCTURE:
+                                ARP Request where:
+                                Sender IP = Target IP (Same address)
+                                Sender MAC = Host's MAC
+                                Target MAC = 00:00:00:00:00:00 or FF:FF:FF:FF:FF:FF
+
+                                ATTACK USE:
+
+                                ATTACKER broadcasts gratuitous ARP:
+                                +-----------------------------------------------+
+                                | Sender MAC: XX:XX:XX:XX (Attacker) |
+                                | Sender IP: 192.168.1.1 (Gateway IP) |
+                                | Target MAC: 00:00:00:00:00:00 |
+                                | Target IP: 192.168.1.1 (Same as Sender) |
+                                +-----------------------------------------------+
+
+                                All hosts receiving this update their cache:
+                                192.168.1.1 -> XX:XX:XX:XX (Attacker's MAC)
+
+                                Single broadcast poisons entire network segment
+                            </div>
+
+                            <!-- ============================================
+                 MAC FLOODING
+                 ============================================ -->
+                            <h2>MAC Flooding (CAM Table Overflow)</h2>
+
+                            <p>
+                                <strong>MAC flooding</strong> exploits the limited size of switch CAM (Content
+                                Addressable
+                                Memory) tables. By flooding a switch with packets containing random source MAC
+                                addresses,
+                                an attacker can overflow the CAM table, causing the switch to fail open and behave like
+                                a hub, broadcasting all traffic to all ports.
+                            </p>
+
+                            <div class="diagram">
+                                MAC FLOODING ATTACK:
+
+                                NORMAL SWITCH OPERATION:
+                                +---------------------------------------------------+
+                                | SWITCH |
+                                | CAM Table: |
+                                | +----------+--------+ |
+                                | | MAC | Port | |
+                                | +----------+--------+ |
+                                | | AA:AA:.. | Port 1 | |
+                                | | BB:BB:.. | Port 2 | |
+                                | | CC:CC:.. | Port 3 | |
+                                | +----------+--------+ |
+                                | Frames forwarded only to destination port |
+                                +---------------------------------------------------+
+
+                                MAC FLOODING:
+
+                                ATTACKER connected to Port 4:
+                                Sends thousands of frames with random source MACs:
+                                - Frame 1: Src MAC = 11:11:11:11:11:11
+                                - Frame 2: Src MAC = 22:22:22:22:22:22
+                                - Frame 3: Src MAC = 33:33:33:33:33:33
+                                ... (continues rapidly)
+
+                                CAM Table Overflow:
+                                +---------------------------------------------------+
+                                | SWITCH |
+                                | CAM Table: FULL (e.g., 8192 entries) |
+                                | +----------+--------+ |
+                                | | 11:11:.. | Port 4 | |
+                                | | 22:22:.. | Port 4 | |
+                                | | 33:33:.. | Port 4 | |
+                                | | ... | ... | |
+                                | | (Legitimate entries pushed out) |
+                                | +----------+--------+ |
+                                | |
+                                | FAIL-OPEN: Unknown MACs broadcast to ALL ports |
+                                +---------------------------------------------------+
+
+                                RESULT:
+                                - Switch cannot find destination MAC in table
+                                - Frames flooded to all ports (hub behavior)
+                                - Attacker receives all network traffic
+                                - Enables passive sniffing on switched network
+                            </div>
+
+                            <div class="technical-block">
+                                <div class="technical-block-title">CAM Table Sizes by Platform</div>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Switch Model</th>
+                                            <th>CAM Table Size</th>
+                                            <th>Overflow Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Small/Home switches</td>
+                                            <td>1,024 - 4,096</td>
+                                            <td>Seconds</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Enterprise Edge</td>
+                                            <td>8,192 - 16,384</td>
+                                            <td>Seconds</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Enterprise Core</td>
+                                            <td>32,768 - 131,072</td>
+                                            <td>Minutes</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- ============================================
+                 ARP CACHE POISONING TACTICS
+                 ============================================ -->
+                            <h2>ARP Cache Poisoning Tactics</h2>
+
+                            <h3>Bidirectional Poisoning</h3>
+
+                            <p>
+                                For complete traffic interception, both endpoints must be poisoned. This creates a
+                                full MITM position where all traffic between targets flows through the attacker.
+                            </p>
+
+                            <div class="diagram">
+                                BIDIRECTIONAL POISONING:
+
+                                TARGET A ATTACKER TARGET B
+                                192.168.1.10 192.168.1.99 192.168.1.20
+                                | | |
+                                |<--"B is at XX:XX"---------| | | |---------"A is at XX:XX"-->|
+                                    | | |
+
+                                    RESULT:
+                                    A's Cache: 192.168.1.20 = XX:XX (Attacker)
+                                    B's Cache: 192.168.1.10 = XX:XX (Attacker)
+
+                                    ALL traffic between A and B passes through Attacker
+                            </div>
+
+                            <h3>Gateway Poisoning</h3>
+
+                            <p>
+                                Poisoning the gateway enables interception of all external traffic. The attacker
+                                impersonates the gateway to internal hosts, capturing all Internet-bound communications.
+                            </p>
+
+                            <div class="diagram">
+                                GATEWAY POISONING:
+
+                                INTERNAL NETWORK ATTACKER GATEWAY INTERNET
+                                [Host A]------+ | | |
+                                [Host B]------+---> [All hosts poisoned] | |
+                                [Host C]------+ to think Attacker | |
+                                is the Gateway | |
+                                | | |
+                                [Captures all traffic]--------->|--------------->|
+                                | | |
+                                <---------[Internet traffic]<---|<---------------| | [Forward to victims] | [Host
+                                    A]<--------------------+ [Host B]<--------------------+ [Host
+                                    C]<--------------------+ </div>
+
+                                    <h3>Persistence and Timing</h3>
+
+                                    <div class="technical-block">
+                                        <div class="technical-block-title">Cache Timing Considerations</div>
+                                        <ul>
+                                            <li><strong>Cache Timeout:</strong> ARP entries expire (typically 2-20
+                                                minutes)</li>
+                                            <li><strong>Continuous Poisoning:</strong> Must send forged replies
+                                                periodically</li>
+                                            <li><strong>Race Condition:</strong> Legitimate replies may override poison
+                                            </li>
+                                            <li><strong>Optimal Interval:</strong> 1-2 seconds between poison packets
+                                            </li>
+                                            <li><strong>Timing Attack:</strong> Send poison immediately after legitimate
+                                                ARP</li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- ============================================
+                 ATTACK OUTCOMES
+                 ============================================ -->
+                                    <h2>Attack Outcomes</h2>
+
+                                    <h3>Traffic Interception</h3>
+
+                                    <p>
+                                        The primary objective of most ARP attacks is traffic interception. With a MITM
+                                        position established, the attacker can:
+                                    </p>
+
+                                    <div class="technical-block">
+                                        <div class="technical-block-title">Interception Capabilities</div>
+                                        <ul>
+                                            <li><strong>Passive Sniffing:</strong> Capture credentials, session tokens,
+                                                data</li>
+                                            <li><strong>Protocol Analysis:</strong> Examine unencrypted protocols (HTTP,
+                                                FTP, Telnet)</li>
+                                            <li><strong>SSL Stripping:</strong> Downgrade HTTPS to HTTP (with additional
+                                                techniques)</li>
+                                            <li><strong>Session Hijacking:</strong> Capture and reuse session cookies
+                                            </li>
+                                            <li><strong>DNS Manipulation:</strong> Redirect DNS queries to
+                                                attacker-controlled servers</li>
+                                        </ul>
+                                    </div>
+
+                                    <h3>Denial of Service</h3>
+
+                                    <p>
+                                        ARP attacks can cause denial of service by directing traffic to non-existent or
+                                        unresponsive MAC addresses.
+                                    </p>
+
+                                    <div class="diagram">
+                                        ARP-BASED DENIAL OF SERVICE:
+
+                                        METHOD 1: Black Hole
+                                        Poison cache with non-existent MAC:
+                                        192.168.1.1 -> DE:AD:DE:AD:DE:AD
+                                        Traffic sent to dead MAC is lost
+
+                                        METHOD 2: Flood/Stop Forwarding
+                                        Establish MITM position
+                                        Stop forwarding traffic
+                                        All communications disrupted
+
+                                        METHOD 3: MAC Flooding DoS
+                                        Overflow CAM table
+                                        Switch floods all traffic
+                                        Network congestion / storm
+                                    </div>
+
+                                    <!-- ============================================
+                 DEFENSE MECHANISMS
+                 ============================================ -->
+                                    <h2>Defense Mechanisms</h2>
+
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Defense</th>
+                                                <th>Mechanism</th>
+                                                <th>Effectiveness</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Static ARP Entries</td>
+                                                <td>Manually configure critical IP/MAC bindings</td>
+                                                <td>High (but not scalable)</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Dynamic ARP Inspection (DAI)</td>
+                                                <td>Validate ARP against DHCP snooping database</td>
+                                                <td>High (requires infrastructure support)</td>
+                                            </tr>
+                                            <tr>
+                                                <td>DHCP Snooping</td>
+                                                <td>Build trusted IP-MAC bindings from DHCP</td>
+                                                <td>High (foundation for DAI)</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Port Security</td>
+                                                <td>Limit MACs per port</td>
+                                                <td>Medium (prevents MAC flooding)</td>
+                                            </tr>
+                                            <tr>
+                                                <td>802.1X</td>
+                                                <td>Port-based authentication</td>
+                                                <td>High (prevents unauthorized access)</td>
+                                            </tr>
+                                            <tr>
+                                                <td>ARPWatch</td>
+                                                <td>Monitor and alert on ARP changes</td>
+                                                <td>Detection only</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Encryption</td>
+                                                <td>TLS/SSL, VPN, IPsec</td>
+                                                <td>Mitigates interception impact</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div class="diagram">
+                                        DYNAMIC ARP INSPECTION (DAI):
+
+                                        DHCP SNOOPING DB
+                                        +------------------+
+                                        | 192.168.1.10 |
+                                        | AA:AA:AA:.. |
+                                        | Port: Gi0/1 |
+                                        +------------------+
+                                        |
+                                        | Validation
+                                        v
+                                        +----------+ ARP Reply +--------+ If Valid +----------+
+                                        | Attacker |------------------>| SWITCH |----------------->| Forward |
+                                        | | 192.168.1.1 is | (DAI) | | |
+                                        | | at XX:XX:XX | | | |
+                                        +----------+ +--------+ +----------+
+                                        |
+                                        Check: Is 192.168.1.1 = XX:XX?
+                                        DB shows: 192.168.1.1 = GG:GG:GG
+                                        Result: MISMATCH - DROP PACKET
+                                    </div>
+
+                                    <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+                                    <h2>Section Summary</h2>
+
+                                    <p>
+                                        This section covered ARP attack techniques:
+                                    </p>
+
+                                    <ul>
+                                        <li>ARP protocol vulnerabilities: stateless, unauthenticated, trust-based</li>
+                                        <li>ARP spoofing: associating attacker MAC with victim IP</li>
+                                        <li>Gratuitous ARP exploitation: proactive cache poisoning</li>
+                                        <li>MAC flooding: CAM table overflow for traffic broadcast</li>
+                                        <li>Bidirectional poisoning: complete MITM positioning</li>
+                                        <li>Attack outcomes: interception, manipulation, denial of service</li>
+                                        <li>Defenses: DAI, DHCP snooping, port security, 802.1X</li>
+                                    </ul>
+
+                                    <div class="technical-block">
+                                        <div class="technical-block-title">Key Takeaways</div>
+                                        <ul>
+                                            <li>ARP attacks require attacker presence on local network segment</li>
+                                            <li>Continuous poisoning required due to cache expiration</li>
+                                            <li>MAC flooding converts switch to hub behavior</li>
+                                            <li>Encryption mitigates but does not prevent ARP attacks</li>
+                                            <li>Enterprise defenses (DAI, 802.1X) significantly increase difficulty</li>
+                                        </ul>
+                                    </div>
+
+                                    <h2>Navigation</h2>
+                                    <p>
+                                        <a href="port-scanning.html" class="nav-link"
+                                            style="display: inline-block;">RETURN TO SECTION 2.1</a>
+                                        <span style="margin: 0 1rem; color: var(--text-muted);">|</span>
+                                        <a href="layer2-attacks.html" class="nav-link"
+                                            style="display: inline-block;">PROCEED TO SECTION 2.3: LAYER 2 ATTACKS</a>
+                                    </p>
+                            </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 2.2: ARP Attacks // Module 2 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

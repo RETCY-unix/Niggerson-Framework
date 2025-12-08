@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 1.6: OSI Reference Model - Comprehensive technical documentation on the seven-layer OSI model and network communication.">
+    <title>1.6 OSI REFERENCE MODEL | MODULE 1 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 1 // SECTION 1.6 // OSI REFERENCE MODEL
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 1.6</h1>
+        <p class="site-subtitle">OSI Reference Model</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 1</a></li>
+            <li><a href="dns.html" class="nav-link">PREV: DNS</a></li>
+            <li><a href="mac-addresses.html" class="nav-link">NEXT: MAC ADDRESSES</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 1</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>1.6 OSI Reference Model</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 1.6</p>
+            <h1>OSI Reference Model</h1>
+
+            <!-- ============================================
+                 INTRODUCTION
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                The <strong>Open Systems Interconnection (OSI) Reference Model</strong> is a conceptual
+                framework developed by the International Organization for Standardization (ISO) to
+                standardize network communication functions. Unlike the practical TCP/IP model that
+                evolved from actual implementation, the OSI model was designed as a theoretical framework
+                to enable interoperability between diverse systems.
+            </p>
+
+            <p>
+                The OSI model divides network communication into seven distinct layers, each with specific
+                responsibilities. This layered architecture promotes modular design, allowing changes to
+                one layer without affecting others. While modern networks primarily implement TCP/IP, the
+                OSI model remains the standard reference framework for understanding network operations,
+                troubleshooting, and communication.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">OSI Reference Model</div>
+                <div class="definition-desc">
+                    A seven-layer conceptual model developed by ISO that standardizes the functions of a
+                    telecommunication or computing system. Each layer serves the layer above it and is
+                    served by the layer below it, with defined interfaces between adjacent layers.
+                </div>
+            </div>
+
+            <!-- ============================================
+                 THE SEVEN LAYERS
+                 ============================================ -->
+            <h2>The Seven Layers</h2>
+
+            <div class="diagram">
+                OSI REFERENCE MODEL:
+
+                Layer Name PDU Function
+                ===== ================= ========= ====================================
+                7 APPLICATION Data User interface, network services
+                6 PRESENTATION Data Data formatting, encryption
+                5 SESSION Data Connection management, dialog control
+                4 TRANSPORT Segment End-to-end delivery, segmentation
+                3 NETWORK Packet Logical addressing, routing
+                2 DATA LINK Frame Physical addressing, framing
+                1 PHYSICAL Bits Physical transmission
+
+                Mnemonic (top-down): All People Seem To Need Data Processing
+                Mnemonic (bottom-up): Please Do Not Throw Sausage Pizza Away
+
+                Data Flow:
+                [Layer 7] --encapsulation--> [Layer 1] --transmission--> [Layer 1] --decapsulation--> [Layer 7]
+            </div>
+
+            <h3>Layer 1: Physical Layer</h3>
+
+            <p>
+                The <strong>Physical Layer</strong> defines the electrical, mechanical, and procedural
+                specifications for transmitting raw bits over a physical medium. This layer is concerned
+                solely with the physical connection between devices and the transmission of binary data.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Physical Layer Functions</div>
+                <ul>
+                    <li><strong>Bit Transmission:</strong> Converting data to signals (electrical, optical, radio)</li>
+                    <li><strong>Physical Characteristics:</strong> Cable specifications, connector types</li>
+                    <li><strong>Transmission Mode:</strong> Simplex, half-duplex, full-duplex</li>
+                    <li><strong>Bit Synchronization:</strong> Clock synchronization between devices</li>
+                    <li><strong>Topology:</strong> Physical arrangement of network devices</li>
+                    <li><strong>Data Rate:</strong> Bits per second transmission speed</li>
+                </ul>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Device/Component</th>
+                        <th>Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Network Interface Card (NIC)</td>
+                        <td>Signal transmission/reception</td>
+                    </tr>
+                    <tr>
+                        <td>Hub</td>
+                        <td>Multi-port repeater (broadcasts to all ports)</td>
+                    </tr>
+                    <tr>
+                        <td>Repeater</td>
+                        <td>Signal regeneration</td>
+                    </tr>
+                    <tr>
+                        <td>Cables (Cat5e, Cat6, Fiber)</td>
+                        <td>Physical transmission medium</td>
+                    </tr>
+                    <tr>
+                        <td>Connectors (RJ-45, SC, LC)</td>
+                        <td>Physical connection interface</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Layer 2: Data Link Layer</h3>
+
+            <p>
+                The <strong>Data Link Layer</strong> provides node-to-node data transfer and handles error
+                detection at the frame level. This layer defines how devices on the same network segment
+                identify themselves (MAC addressing) and how data is formatted for physical transmission.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Data Link Layer Functions</div>
+                <ul>
+                    <li><strong>Framing:</strong> Encapsulating packets into frames</li>
+                    <li><strong>Physical Addressing:</strong> MAC address source and destination</li>
+                    <li><strong>Error Detection:</strong> Frame Check Sequence (FCS) using CRC</li>
+                    <li><strong>Media Access Control:</strong> Controlling access to shared media</li>
+                    <li><strong>Flow Control:</strong> Preventing buffer overflow on receiving device</li>
+                </ul>
+            </div>
+
+            <p>
+                The Data Link Layer is often subdivided into two sublayers:
+            </p>
+
+            <div class="diagram">
+                DATA LINK SUBLAYERS:
+
+                +===================================+
+                | DATA LINK LAYER |
+                +===================================+
+                | |
+                | +-----------------------------+ |
+                | | LLC (Logical Link | |
+                | | Control) - 802.2 | |
+                | | - Flow control | |
+                | | - Error notification | |
+                | | - Protocol identification| |
+                | +-----------------------------+ |
+                | |
+                | +-----------------------------+ |
+                | | MAC (Media Access | |
+                | | Control) - 802.3/802.11 | |
+                | | - Physical addressing | |
+                | | - Media access | |
+                | | - Frame delimiting | |
+                | +-----------------------------+ |
+                | |
+                +===================================+
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Device</th>
+                        <th>Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Switch</td>
+                        <td>Forwards frames based on MAC address table</td>
+                    </tr>
+                    <tr>
+                        <td>Bridge</td>
+                        <td>Connects network segments, filters by MAC</td>
+                    </tr>
+                    <tr>
+                        <td>Wireless Access Point</td>
+                        <td>Layer 2 wireless connectivity</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Layer 3: Network Layer</h3>
+
+            <p>
+                The <strong>Network Layer</strong> handles logical addressing and routing of data between
+                networks. This layer determines the best path for data to travel from source to destination
+                across potentially multiple network hops.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Network Layer Functions</div>
+                <ul>
+                    <li><strong>Logical Addressing:</strong> IP address assignment and interpretation</li>
+                    <li><strong>Routing:</strong> Path selection across networks</li>
+                    <li><strong>Packet Forwarding:</strong> Moving packets toward destination</li>
+                    <li><strong>Fragmentation:</strong> Breaking packets to fit MTU constraints</li>
+                    <li><strong>Error Handling:</strong> ICMP messages for error reporting</li>
+                </ul>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Protocol/Device</th>
+                        <th>Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>IP (IPv4/IPv6)</td>
+                        <td>Logical addressing and packet delivery</td>
+                    </tr>
+                    <tr>
+                        <td>ICMP</td>
+                        <td>Error reporting and diagnostics</td>
+                    </tr>
+                    <tr>
+                        <td>Router</td>
+                        <td>Forwards packets between networks</td>
+                    </tr>
+                    <tr>
+                        <td>Layer 3 Switch</td>
+                        <td>Routing with switching speed</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Layer 4: Transport Layer</h3>
+
+            <p>
+                The <strong>Transport Layer</strong> provides end-to-end communication services between
+                applications on different hosts. This layer handles segmentation, flow control, and
+                connection management.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Transport Layer Functions</div>
+                <ul>
+                    <li><strong>Segmentation:</strong> Dividing data into manageable segments</li>
+                    <li><strong>Reassembly:</strong> Reconstructing data at destination</li>
+                    <li><strong>Connection Control:</strong> Connection-oriented (TCP) or connectionless (UDP)</li>
+                    <li><strong>Flow Control:</strong> Managing transmission rate</li>
+                    <li><strong>Error Control:</strong> Ensuring data integrity through acknowledgments</li>
+                    <li><strong>Port Addressing:</strong> Identifying specific applications</li>
+                </ul>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Protocol</th>
+                        <th>Characteristics</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>TCP</td>
+                        <td>Reliable, connection-oriented, ordered delivery</td>
+                    </tr>
+                    <tr>
+                        <td>UDP</td>
+                        <td>Unreliable, connectionless, faster</td>
+                    </tr>
+                    <tr>
+                        <td>SCTP</td>
+                        <td>Multi-streaming, multi-homing support</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Layer 5: Session Layer</h3>
+
+            <p>
+                The <strong>Session Layer</strong> manages sessions between applications. It establishes,
+                maintains, and terminates connections between local and remote applications. This layer
+                also provides session checkpointing and recovery.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Session Layer Functions</div>
+                <ul>
+                    <li><strong>Session Establishment:</strong> Creating communication sessions</li>
+                    <li><strong>Session Maintenance:</strong> Managing active sessions</li>
+                    <li><strong>Session Termination:</strong> Properly closing sessions</li>
+                    <li><strong>Dialog Control:</strong> Managing turn-taking in communication</li>
+                    <li><strong>Synchronization:</strong> Checkpoints for long transfers</li>
+                </ul>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Protocol/Technology</th>
+                        <th>Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>NetBIOS</td>
+                        <td>Session service for Windows networks</td>
+                    </tr>
+                    <tr>
+                        <td>RPC</td>
+                        <td>Remote Procedure Call session management</td>
+                    </tr>
+                    <tr>
+                        <td>PPTP</td>
+                        <td>Point-to-Point Tunneling session</td>
+                    </tr>
+                    <tr>
+                        <td>SQL Sessions</td>
+                        <td>Database connection management</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Layer 6: Presentation Layer</h3>
+
+            <p>
+                The <strong>Presentation Layer</strong> handles data representation and transformation.
+                It ensures that data from the application layer of one system can be read by the
+                application layer of another system, regardless of differing data formats.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Presentation Layer Functions</div>
+                <ul>
+                    <li><strong>Data Translation:</strong> Converting between data formats</li>
+                    <li><strong>Character Encoding:</strong> ASCII, EBCDIC, Unicode conversion</li>
+                    <li><strong>Encryption/Decryption:</strong> Securing data for transmission</li>
+                    <li><strong>Compression:</strong> Reducing data size for efficiency</li>
+                    <li><strong>Data Formatting:</strong> JPEG, GIF, MPEG, etc.</li>
+                </ul>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Format/Standard</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>SSL/TLS</td>
+                        <td>Encryption</td>
+                    </tr>
+                    <tr>
+                        <td>ASCII, EBCDIC, Unicode</td>
+                        <td>Character encoding</td>
+                    </tr>
+                    <tr>
+                        <td>JPEG, GIF, PNG</td>
+                        <td>Image formats</td>
+                    </tr>
+                    <tr>
+                        <td>MPEG, MP3, H.264</td>
+                        <td>Multimedia formats</td>
+                    </tr>
+                    <tr>
+                        <td>XDR, ASN.1</td>
+                        <td>Data serialization</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Layer 7: Application Layer</h3>
+
+            <p>
+                The <strong>Application Layer</strong> is the topmost layer, providing the interface
+                between user applications and the network. This layer enables services that directly
+                support user applications such as email, file transfer, and web browsing.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Application Layer Functions</div>
+                <ul>
+                    <li><strong>Network Services:</strong> Providing access to network resources</li>
+                    <li><strong>Application Services:</strong> Email, file transfer, web browsing</li>
+                    <li><strong>User Interface:</strong> Interface between user and network</li>
+                    <li><strong>Network Virtual Terminal:</strong> Remote access abstraction</li>
+                    <li><strong>Directory Services:</strong> Locating network resources</li>
+                </ul>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Protocol</th>
+                        <th>Service</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>HTTP/HTTPS</td>
+                        <td>Web browsing</td>
+                    </tr>
+                    <tr>
+                        <td>FTP/SFTP</td>
+                        <td>File transfer</td>
+                    </tr>
+                    <tr>
+                        <td>SMTP/POP3/IMAP</td>
+                        <td>Email</td>
+                    </tr>
+                    <tr>
+                        <td>DNS</td>
+                        <td>Name resolution</td>
+                    </tr>
+                    <tr>
+                        <td>DHCP</td>
+                        <td>IP configuration</td>
+                    </tr>
+                    <tr>
+                        <td>SSH/Telnet</td>
+                        <td>Remote access</td>
+                    </tr>
+                    <tr>
+                        <td>SNMP</td>
+                        <td>Network management</td>
+                    </tr>
+                    <tr>
+                        <td>LDAP</td>
+                        <td>Directory services</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- ============================================
+                 ENCAPSULATION AND DECAPSULATION
+                 ============================================ -->
+            <h2>Encapsulation and Decapsulation</h2>
+
+            <p>
+                As data moves through the OSI layers, each layer adds its own header (and sometimes
+                trailer) containing control information. This process is called <strong>encapsulation</strong>.
+                When data is received, the reverse process (<strong>decapsulation</strong>) strips headers
+                at each layer.
+            </p>
+
+            <div class="diagram">
+                ENCAPSULATION PROCESS:
+
+                SENDER RECEIVER
+                ====== ========
+
+                Layer 7 [ DATA ] [ DATA ] Layer 7
+                | ^
+                v |
+                Layer 6 [ L6 | DATA ] [ L6 | DATA ] Layer 6
+                | ^
+                v |
+                Layer 5 [ L5 | L6 | DATA ] [ L5 | L6 | DATA ] Layer 5
+                | ^
+                v |
+                Layer 4 [L4| L5 | L6 | DATA ] [L4| L5 | L6 | DATA ] Layer 4
+                (Segment) | ^
+                v |
+                Layer 3 [L3|L4| L5 | L6| DATA] [L3|L4| L5 | L6| DATA] Layer 3
+                (Packet) | ^
+                v |
+                Layer 2 [L2|L3|L4|L5|L6|DATA|FCS] [L2|L3|L4|L5|L6|DATA|FCS] Layer 2
+                (Frame) | ^
+                v |
+                Layer 1 [01101001110100101...] ============> [01101001110100101...] Layer 1
+                (Bits) PHYSICAL TRANSMISSION
+
+                Note: In practice, layers 5-7 are often combined in TCP/IP implementation
+            </div>
+
+            <!-- ============================================
+                 OSI VS TCP/IP
+                 ============================================ -->
+            <h2>OSI Model vs TCP/IP Model</h2>
+
+            <div class="diagram">
+                MODEL COMPARISON:
+
+                OSI MODEL TCP/IP MODEL
+                ========= ============
+
+                +------------------+ +------------------+
+                | 7. Application | | |
+                +------------------+ | |
+                | 6. Presentation | <===> | Application |
+                    +------------------+ | |
+                    | 5. Session | | |
+                    +------------------+ +------------------+
+                    | 4. Transport | <===> | Transport |
+                        +------------------+ +------------------+
+                        | 3. Network | <===> | Internet |
+                            +------------------+ +------------------+
+                            | 2. Data Link | | |
+                            +------------------+ <===> | Network Access |
+                                | 1. Physical | | |
+                                +------------------+ +------------------+
+
+                                7 Layers 4 Layers
+                                Theoretical model Practical implementation
+                                ISO developed ARPANET developed
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>OSI Model</th>
+                        <th>TCP/IP Model</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Layers</td>
+                        <td>7</td>
+                        <td>4</td>
+                    </tr>
+                    <tr>
+                        <td>Development</td>
+                        <td>ISO (international standard)</td>
+                        <td>DoD/ARPANET (practical)</td>
+                    </tr>
+                    <tr>
+                        <td>Approach</td>
+                        <td>Model-first, then protocols</td>
+                        <td>Protocols-first, model derived</td>
+                    </tr>
+                    <tr>
+                        <td>Session/Presentation</td>
+                        <td>Separate layers</td>
+                        <td>Combined into Application</td>
+                    </tr>
+                    <tr>
+                        <td>Usage</td>
+                        <td>Reference and education</td>
+                        <td>Actual implementation</td>
+                    </tr>
+                    <tr>
+                        <td>Protocol Independence</td>
+                        <td>Yes, general concepts</td>
+                        <td>Specific to TCP/IP protocols</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- ============================================
+                 TROUBLESHOOTING WITH OSI
+                 ============================================ -->
+            <h2>Troubleshooting with the OSI Model</h2>
+
+            <p>
+                The OSI model provides a systematic approach to network troubleshooting. By understanding
+                which layer is affected, technicians can quickly isolate problems and apply appropriate
+                solutions.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Layer-by-Layer Troubleshooting</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Common Issues</th>
+                            <th>Diagnostic Commands</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Physical</td>
+                            <td>Cable damage, connector issues, power</td>
+                            <td>Visual inspection, cable tester, LED status</td>
+                        </tr>
+                        <tr>
+                            <td>Data Link</td>
+                            <td>MAC conflicts, VLAN mismatch, spanning tree</td>
+                            <td>show mac-address-table, arp -a</td>
+                        </tr>
+                        <tr>
+                            <td>Network</td>
+                            <td>IP conflicts, routing issues, MTU problems</td>
+                            <td>ping, traceroute, show ip route</td>
+                        </tr>
+                        <tr>
+                            <td>Transport</td>
+                            <td>Port blocked, firewall rules, connection timeout</td>
+                            <td>netstat, telnet [ip] [port], nmap</td>
+                        </tr>
+                        <tr>
+                            <td>Session</td>
+                            <td>Session timeout, authentication failure</td>
+                            <td>Application logs, session monitoring</td>
+                        </tr>
+                        <tr>
+                            <td>Presentation</td>
+                            <td>Encoding issues, encryption problems</td>
+                            <td>Certificate verification, format checking</td>
+                        </tr>
+                        <tr>
+                            <td>Application</td>
+                            <td>Service down, misconfiguration</td>
+                            <td>Application-specific tools, logs</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="diagram">
+                BOTTOM-UP TROUBLESHOOTING APPROACH:
+
+                Step 1: Physical Layer
+                +--[Check cable connections]
+                +--[Verify link lights]
+                +--[Test cable continuity]
+                |
+                v (If physical OK)
+
+                Step 2: Data Link Layer
+                +--[Verify MAC addresses]
+                +--[Check switch port status]
+                +--[Verify VLAN assignment]
+                |
+                v (If data link OK)
+
+                Step 3: Network Layer
+                +--[Verify IP configuration]
+                +--[ping local gateway]
+                +--[ping remote destination]
+                +--[Check routing table]
+                |
+                v (If network OK)
+
+                Step 4: Transport Layer
+                +--[Verify port connectivity]
+                +--[Check firewall rules]
+                +--[Verify service listening]
+                |
+                v (If transport OK)
+
+                Step 5-7: Upper Layers
+                +--[Check application logs]
+                +--[Verify authentication]
+                +--[Test application function]
+            </div>
+
+            <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+            <h2>Section Summary</h2>
+
+            <p>
+                This section covered the OSI Reference Model, the standard framework for understanding
+                network communication:
+            </p>
+
+            <ul>
+                <li>Seven layers: Physical, Data Link, Network, Transport, Session, Presentation, Application</li>
+                <li>Each layer has specific functions and protocols</li>
+                <li>Encapsulation adds headers as data moves down the stack</li>
+                <li>OSI provides theoretical framework; TCP/IP is practical implementation</li>
+                <li>OSI model enables systematic troubleshooting approach</li>
+            </ul>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Key Takeaways</div>
+                <ul>
+                    <li>OSI provides a universal reference for network communication</li>
+                    <li>Each layer serves the layer above and uses the layer below</li>
+                    <li>PDUs change name at each layer (Data, Segment, Packet, Frame, Bits)</li>
+                    <li>Understanding layers enables efficient troubleshooting</li>
+                    <li>Modern networks use TCP/IP, but OSI concepts remain essential knowledge</li>
+                </ul>
+            </div>
+
+            <h2>Navigation</h2>
+            <p>
+                <a href="dns.html" class="nav-link" style="display: inline-block;">RETURN TO SECTION 1.5</a>
+                <span style="margin: 0 1rem; color: var(--text-muted);">|</span>
+                <a href="mac-addresses.html" class="nav-link" style="display: inline-block;">PROCEED TO SECTION 1.7: MAC
+                    ADDRESSES</a>
+            </p>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 1.6: OSI Reference Model // Module 1 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

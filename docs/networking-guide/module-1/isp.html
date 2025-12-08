@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 1.3: Internet Service Providers - Technical overview of ISP hierarchy, peering, transit, and internet infrastructure.">
+    <title>1.3 INTERNET SERVICE PROVIDERS | MODULE 1 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 1 // SECTION 1.3 // INTERNET SERVICE PROVIDERS
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 1.3</h1>
+        <p class="site-subtitle">Internet Service Providers</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 1</a></li>
+            <li><a href="ip-addressing.html" class="nav-link">PREV: IP ADDRESSING</a></li>
+            <li><a href="tcp-ip.html" class="nav-link">NEXT: TCP/IP</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 1</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>1.3 Internet Service Providers</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 1.3</p>
+            <h1>Internet Service Providers</h1>
+
+            <!-- ============================================
+                 INTRODUCTION TO ISPs
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                An <strong>Internet Service Provider (ISP)</strong> is an organization that provides services
+                for accessing, using, or participating in the Internet. ISPs form the commercial backbone of
+                Internet connectivity, operating the infrastructure that enables end users and organizations
+                to connect to the global network. Understanding ISP operations is essential for network planning,
+                troubleshooting connectivity issues, and comprehending how data traverses the Internet.
+            </p>
+
+            <p>
+                The Internet is not a single network but rather an interconnection of thousands of independent
+                networks operated by ISPs worldwide. These networks must cooperate and exchange traffic through
+                defined relationships to create the unified global network we call the Internet. The technical
+                and business relationships between ISPs fundamentally shape Internet performance, resilience,
+                and accessibility.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">Internet Service Provider (ISP)</div>
+                <div class="definition-desc">
+                    An organization that provides customers with access to the Internet and related services.
+                    ISPs maintain network infrastructure, routing systems, and interconnections with other
+                    networks to enable global connectivity.
+                </div>
+            </div>
+
+            <!-- ============================================
+                 ISP HIERARCHY
+                 ============================================ -->
+            <h2>ISP Tier Classification</h2>
+
+            <p>
+                ISPs are classified into tiers based on their role in the Internet hierarchy and their
+                interconnection relationships with other providers. This tier system reflects both network
+                size and the provider's position within the global routing infrastructure.
+            </p>
+
+            <h3>Tier 1 ISPs</h3>
+
+            <p>
+                <strong>Tier 1 providers</strong> represent the apex of the Internet hierarchy. These organizations
+                operate massive global networks with direct connections to every part of the Internet. The defining
+                characteristic of a Tier 1 provider is that they can reach every other network on the Internet
+                without purchasing transit from any other provider. Tier 1 networks exchange traffic exclusively
+                through settlement-free peering agreements with other Tier 1 providers.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Tier 1 ISP Characteristics</div>
+                <ul>
+                    <li><strong>Global Reach:</strong> Direct or peered connectivity to all Internet destinations</li>
+                    <li><strong>Transit-Free:</strong> Does not purchase transit from any other provider</li>
+                    <li><strong>Peering:</strong> Settlement-free peering with all other Tier 1 providers</li>
+                    <li><strong>Infrastructure:</strong> Operates intercontinental backbone networks</li>
+                    <li><strong>AS Numbers:</strong> Manages significant IP address and AS resources</li>
+                    <li><strong>Examples:</strong> Lumen (CenturyLink), NTT, Cogent, GTT, Telia</li>
+                </ul>
+            </div>
+
+            <h3>Tier 2 ISPs</h3>
+
+            <p>
+                <strong>Tier 2 providers</strong> operate regional or national networks that require a combination
+                of peering and transit to reach all Internet destinations. These ISPs have extensive networks
+                but lack the global reach of Tier 1 providers. They peer with some networks directly while
+                purchasing transit from Tier 1 providers for destinations they cannot reach through peering.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Tier 2 ISP Characteristics</div>
+                <ul>
+                    <li><strong>Regional/National Scope:</strong> Significant but not global infrastructure</li>
+                    <li><strong>Transit Required:</strong> Purchases transit for some destinations</li>
+                    <li><strong>Peering Active:</strong> Maintains numerous peering relationships</li>
+                    <li><strong>Customer Base:</strong> Serves smaller ISPs and enterprise customers</li>
+                    <li><strong>Examples:</strong> Regional carriers, national ISPs without global backbone</li>
+                </ul>
+            </div>
+
+            <h3>Tier 3 ISPs</h3>
+
+            <p>
+                <strong>Tier 3 providers</strong> are typically local or retail ISPs that purchase all their
+                transit from larger providers. These organizations focus on last-mile connectivity, delivering
+                Internet access to residential and small business customers within a specific geographic area.
+                Tier 3 ISPs do not typically peer with other networks; they rely entirely on their upstream
+                transit providers for Internet connectivity.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Tier 3 ISP Characteristics</div>
+                <ul>
+                    <li><strong>Local Scope:</strong> Serves specific geographic region</li>
+                    <li><strong>Transit Dependent:</strong> Purchases all upstream connectivity</li>
+                    <li><strong>No Peering:</strong> Limited or no direct peering relationships</li>
+                    <li><strong>Focus:</strong> Last-mile delivery to end consumers</li>
+                    <li><strong>Examples:</strong> Local cable providers, regional DSL operators</li>
+                </ul>
+            </div>
+
+            <div class="diagram">
+                ISP TIER HIERARCHY:
+
+                +===============================+
+                | TIER 1 ISPs |
+                | (Global Backbone Operators) |
+                +===============================+
+                /|\ | |\
+                Peering | Transit | Peering |
+                | $ | |
+                +============+ +============+
+                | TIER 2 ISP | | TIER 2 ISP |
+                | (Regional) |<-->| (Regional) |
+                    +============+ +============+
+                    | |
+                    Transit $ Transit $
+                    | |
+                    +============+ +============+
+                    | TIER 3 ISP | | TIER 3 ISP |
+                    | (Local) | | (Local) |
+                    +============+ +============+
+                    | |
+                    +---------+ +---------+
+                    | END | | END |
+                    | USERS | | USERS |
+                    +---------+ +---------+
+
+                    Traffic Flow: End users -> Tier 3 -> Tier 2 -> Tier 1 -> Destination path
+                    Payment Flow: Lower tiers pay upper tiers for transit ($)
+            </div>
+
+            <!-- ============================================
+                 PEERING AND TRANSIT
+                 ============================================ -->
+            <h2>Interconnection Types</h2>
+
+            <p>
+                ISPs interconnect through two primary relationship types: <strong>peering</strong> and
+                <strong>transit</strong>. Understanding these relationships is critical for comprehending
+                Internet routing, performance optimization, and traffic engineering.
+            </p>
+
+            <h3>Peering</h3>
+
+            <p>
+                <strong>Peering</strong> is an agreement between two networks to exchange traffic between
+                their respective customers directly. In a peering arrangement, neither party pays the other
+                for traffic exchange. Peering is typically established when both parties benefit roughly
+                equally from the direct traffic exchange, reducing the need for transit.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">Settlement-Free Peering</div>
+                <div class="definition-desc">
+                    An interconnection agreement where two networks exchange traffic without monetary payment.
+                    Each party carries traffic destined for its own customers at its own expense. This arrangement
+                    assumes roughly equal benefit to both parties.
+                </div>
+            </div>
+
+            <p>
+                Peering can be established through two methods:
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Characteristics</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Private Peering</td>
+                        <td>Direct physical connection between two networks</td>
+                        <td>Dedicated capacity, higher cost, greater control</td>
+                    </tr>
+                    <tr>
+                        <td>Public Peering</td>
+                        <td>Connection through an Internet Exchange Point (IXP)</td>
+                        <td>Shared facility, lower cost, access to multiple peers</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Transit</h3>
+
+            <p>
+                <strong>Transit</strong> is a paid service where one network pays another for access to the
+                entire Internet. The transit provider agrees to forward traffic from the customer network to
+                any destination on the Internet and to accept traffic from anywhere on the Internet destined
+                for the customer. Transit providers announce the customer's routes to their peers and upstream
+                providers.
+            </p>
+
+            <div class="diagram">
+                PEERING VS TRANSIT COMPARISON:
+
+                PEERING RELATIONSHIP:
+                +--------+ +--------+
+                | ISP A |<========= PEERING=========>| ISP B |
+                    +--------+ (No payment, mutual) +--------+
+                    | |
+                    [Customers A] [Customers B]
+
+                    - ISP A reaches ISP B's customers directly
+                    - ISP B reaches ISP A's customers directly
+                    - Neither pays the other
+                    - Routes exchanged: Only customer routes
+
+                    TRANSIT RELATIONSHIP:
+                    +---------------+ +--------+
+                    | TRANSIT |<===== TRANSIT====| ISP C | | PROVIDER | (ISP C pays) +--------+ +---------------+ | |
+                        [Customers C] [INTERNET] - ISP C pays Transit Provider for connectivity - Transit Provider
+                        forwards ISP C traffic to entire Internet - Transit Provider accepts traffic from Internet for
+                        ISP C - Routes exchanged: Full Internet routing table </div>
+
+                        <!-- ============================================
+                 INTERNET EXCHANGE POINTS
+                 ============================================ -->
+                        <h2>Internet Exchange Points</h2>
+
+                        <p>
+                            An <strong>Internet Exchange Point (IXP)</strong> is a physical location where multiple
+                            networks interconnect to exchange traffic. IXPs provide shared switching infrastructure
+                            that enables efficient peering between many networks at reduced cost compared to
+                            establishing
+                            individual private peering connections.
+                        </p>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">IXP Functions</div>
+                            <ul>
+                                <li><strong>Traffic Localization:</strong> Keeps local traffic local, reducing latency
+                                </li>
+                                <li><strong>Cost Reduction:</strong> Shared infrastructure lowers interconnection costs
+                                </li>
+                                <li><strong>Performance:</strong> Direct paths between networks improve latency</li>
+                                <li><strong>Resilience:</strong> Multiple peering options provide redundancy</li>
+                                <li><strong>Neutrality:</strong> Typically carrier-neutral facilities</li>
+                            </ul>
+                        </div>
+
+                        <div class="diagram">
+                            INTERNET EXCHANGE POINT ARCHITECTURE:
+
+                            +-----------------------------------+
+                            | INTERNET EXCHANGE POINT |
+                            | (Layer 2 Switch) |
+                            +---+---+---+---+---+---+---+---+---+
+                            | | | | | | | |
+                            | | | | | | | |
+                            +---+ | | | | | +---+
+                            | | | | | | |
+                            [ISP-1] [ISP-2] | [ISP-4] | [ISP-6] [ISP-7]
+                            | |
+                            [ISP-3] [ISP-5]
+
+                            Each ISP connects to the IXP switch
+                            Peering sessions established via BGP between participants
+                            Traffic exchange occurs directly at Layer 2
+                            No single entity controls all traffic flow
+                        </div>
+
+                        <p>
+                            Major IXPs handle enormous traffic volumes. The largest exchanges process multiple terabits
+                            per second of aggregate traffic, facilitating efficient routing between hundreds of member
+                            networks.
+                        </p>
+
+                        <!-- ============================================
+                 LAST MILE TECHNOLOGIES
+                 ============================================ -->
+                        <h2>Last Mile Technologies</h2>
+
+                        <p>
+                            The <strong>last mile</strong> refers to the final segment of network infrastructure
+                            connecting
+                            the ISP's distribution network to the end customer's premises. Last mile technology directly
+                            impacts the bandwidth, latency, and reliability experienced by end users.
+                        </p>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Technology</th>
+                                    <th>Medium</th>
+                                    <th>Typical Speed</th>
+                                    <th>Characteristics</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>DSL</td>
+                                    <td>Copper telephone line</td>
+                                    <td>1-100 Mbps</td>
+                                    <td>Distance-sensitive, widely available</td>
+                                </tr>
+                                <tr>
+                                    <td>Cable (DOCSIS)</td>
+                                    <td>Coaxial cable</td>
+                                    <td>10-1000 Mbps</td>
+                                    <td>Shared medium, asymmetric typical</td>
+                                </tr>
+                                <tr>
+                                    <td>Fiber (FTTH)</td>
+                                    <td>Fiber optic</td>
+                                    <td>100-10000 Mbps</td>
+                                    <td>Highest bandwidth, low latency</td>
+                                </tr>
+                                <tr>
+                                    <td>Fixed Wireless</td>
+                                    <td>Radio frequency</td>
+                                    <td>10-1000 Mbps</td>
+                                    <td>Line-of-sight, weather-sensitive</td>
+                                </tr>
+                                <tr>
+                                    <td>Satellite</td>
+                                    <td>Radio (orbital)</td>
+                                    <td>10-200 Mbps</td>
+                                    <td>High latency (GEO), global coverage</td>
+                                </tr>
+                                <tr>
+                                    <td>Cellular (5G)</td>
+                                    <td>Radio frequency</td>
+                                    <td>50-1000+ Mbps</td>
+                                    <td>Mobile, shared spectrum</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3>DSL Technologies</h3>
+
+                        <p>
+                            <strong>Digital Subscriber Line (DSL)</strong> transmits data over existing copper telephone
+                            infrastructure. DSL utilizes frequency ranges above voice frequencies, enabling simultaneous
+                            voice and data transmission. Performance degrades with distance from the central office,
+                            limiting practical deployment range.
+                        </p>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">DSL Variants</div>
+                            <ul>
+                                <li><strong>ADSL:</strong> Asymmetric, higher download than upload (8/1 Mbps typical)
+                                </li>
+                                <li><strong>ADSL2+:</strong> Enhanced ADSL, up to 24 Mbps downstream</li>
+                                <li><strong>VDSL:</strong> Very high bit rate DSL, up to 52 Mbps</li>
+                                <li><strong>VDSL2:</strong> Up to 100 Mbps, requires fiber closer to premises</li>
+                                <li><strong>G.fast:</strong> Up to 1 Gbps, requires fiber within 250 meters</li>
+                            </ul>
+                        </div>
+
+                        <h3>Fiber Technologies</h3>
+
+                        <p>
+                            Fiber optic last mile connections represent the highest-performance access technology
+                            currently deployed at scale. <strong>Fiber to the Home (FTTH)</strong> delivers fiber
+                            directly to the customer premises, providing symmetric multi-gigabit capability with
+                            extremely low latency.
+                        </p>
+
+                        <div class="diagram">
+                            FIBER DEPLOYMENT ARCHITECTURES:
+
+                            FTTH (Fiber to the Home):
+                            [Central Office]====FIBER====[ONT at Home]---[Devices]
+                            Highest performance, highest cost
+
+                            FTTC (Fiber to the Curb):
+                            [Central Office]====FIBER====[Street Cabinet]---COPPER---[Home]
+                            Fiber to neighborhood, copper last 100m
+
+                            FTTN (Fiber to the Node):
+                            [Central Office]====FIBER====[Distribution Node]---COPPER---[Homes]
+                            Fiber to area, copper for final 1km+
+
+                            PON (Passive Optical Network):
+                            [Central Office]====FIBER====[Passive Splitter]
+                            |---FIBER---[ONT-1]
+                            |---FIBER---[ONT-2]
+                            |---FIBER---[ONT-n]
+                            Single fiber splits to serve multiple premises
+                        </div>
+
+                        <!-- ============================================
+                 ROUTING FUNDAMENTALS
+                 ============================================ -->
+                        <h2>ISP Routing Operations</h2>
+
+                        <p>
+                            ISPs utilize the <strong>Border Gateway Protocol (BGP)</strong> to exchange routing
+                            information with peers and customers. BGP enables ISPs to advertise the networks they
+                            can reach and to learn routes from other networks. The aggregation of all BGP-exchanged
+                            routes forms the global Internet routing table.
+                        </p>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">BGP Overview</div>
+                            <ul>
+                                <li><strong>Protocol Type:</strong> Path-vector routing protocol</li>
+                                <li><strong>Transport:</strong> TCP port 179</li>
+                                <li><strong>Scope:</strong> Inter-domain (between Autonomous Systems)</li>
+                                <li><strong>Selection:</strong> Based on policy, AS path, and other attributes</li>
+                                <li><strong>Convergence:</strong> Slow compared to IGPs (minutes)</li>
+                                <li><strong>Table Size:</strong> 900,000+ prefixes in global table (2024)</li>
+                            </ul>
+                        </div>
+
+                        <h3>Autonomous Systems</h3>
+
+                        <p>
+                            An <strong>Autonomous System (AS)</strong> is a collection of IP networks under the control
+                            of a single administrative entity that presents a common routing policy to the Internet.
+                            Each AS is identified by a unique Autonomous System Number (ASN), assigned by Regional
+                            Internet Registries.
+                        </p>
+
+                        <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+                        <h2>Section Summary</h2>
+
+                        <p>
+                            This section covered the structure and operations of Internet Service Providers:
+                        </p>
+
+                        <ul>
+                            <li>Three-tier ISP hierarchy: Tier 1 (global), Tier 2 (regional), Tier 3 (local)</li>
+                            <li>Interconnection types: Peering (mutual benefit) and Transit (paid service)</li>
+                            <li>Internet Exchange Points for efficient multi-party peering</li>
+                            <li>Last mile technologies: DSL, Cable, Fiber, Wireless, Satellite</li>
+                            <li>BGP as the inter-domain routing protocol</li>
+                            <li>Autonomous Systems as administrative routing domains</li>
+                        </ul>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">Key Takeaways</div>
+                            <ul>
+                                <li>The Internet is an interconnection of thousands of independent networks</li>
+                                <li>Tier 1 ISPs form the backbone with global transit-free reach</li>
+                                <li>Peering reduces costs; transit provides full Internet access</li>
+                                <li>IXPs enable efficient traffic exchange between networks</li>
+                                <li>Last mile technology directly impacts end-user experience</li>
+                                <li>BGP governs all inter-domain routing on the Internet</li>
+                            </ul>
+                        </div>
+
+                        <h2>Navigation</h2>
+                        <p>
+                            <a href="ip-addressing.html" class="nav-link" style="display: inline-block;">RETURN TO
+                                SECTION 1.2</a>
+                            <span style="margin: 0 1rem; color: var(--text-muted);">|</span>
+                            <a href="tcp-ip.html" class="nav-link" style="display: inline-block;">PROCEED TO SECTION
+                                1.4: TCP/IP</a>
+                        </p>
+            </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 1.3: Internet Service Providers // Module 1 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Module 2: Network Attack Concepts - Comprehensive coverage of offensive network operations, reconnaissance, exploitation, and attack methodologies.">
+    <title>MODULE 2: NETWORK ATTACK CONCEPTS | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 2 // NETWORK ATTACK CONCEPTS
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Module 2</h1>
+        <p class="site-subtitle">Network Attack Concepts</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="../module-1/index.html" class="nav-link">MODULE 1</a></li>
+            <li><a href="index.html" class="nav-link active">MODULE 2</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>Module 2: Attack Concepts</span>
+            </nav>
+
+            <p class="section-marker">// MODULE OVERVIEW</p>
+            <h1>Network Attack Concepts</h1>
+
+            <p>
+                This module provides comprehensive coverage of network attack methodologies utilized in
+                offensive network operations. Content herein is intended for authorized security personnel,
+                penetration testers, and network defenders seeking to understand threat actor techniques.
+                Understanding attack vectors is essential for implementing effective defensive measures.
+            </p>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Module Objectives</div>
+                <ul>
+                    <li>Master reconnaissance and port scanning techniques</li>
+                    <li>Understand Layer 2 attack vectors and exploitation</li>
+                    <li>Analyze Man-in-the-Middle attack methodologies</li>
+                    <li>Comprehend advanced attack vectors including MOTS and Evil Twin</li>
+                    <li>Study tunneling techniques for infiltration and exfiltration</li>
+                    <li>Examine Denial of Service attack classifications</li>
+                </ul>
+            </div>
+
+            <h2>Module Sections</h2>
+
+            <div class="module-nav">
+                <a href="port-scanning.html" class="module-card">
+                    <div class="module-card-title">2.1 Port Scanning and Reconnaissance</div>
+                    <div class="module-card-desc">
+                        TCP scan types (SYN, FIN, XMAS, NULL, ACK, Window), UDP scanning,
+                        service detection, OS fingerprinting, and scan evasion techniques.
+                    </div>
+                </a>
+
+                <a href="arp-attacks.html" class="module-card">
+                    <div class="module-card-title">2.2 ARP Attacks</div>
+                    <div class="module-card-desc">
+                        ARP protocol vulnerabilities, ARP spoofing and poisoning, gratuitous
+                        ARP exploitation, MAC flooding, and CAM table overflow attacks.
+                    </div>
+                </a>
+
+                <a href="layer2-attacks.html" class="module-card">
+                    <div class="module-card-title">2.3 Layer 2 Attacks</div>
+                    <div class="module-card-desc">
+                        VLAN hopping, STP manipulation, DHCP starvation, rogue DHCP servers,
+                        and MAC spoofing operations.
+                    </div>
+                </a>
+
+                <a href="mitm-attacks.html" class="module-card">
+                    <div class="module-card-title">2.4 Man-in-the-Middle Attacks</div>
+                    <div class="module-card-desc">
+                        MITM positioning techniques, SSL/TLS interception, SSL stripping,
+                        session hijacking, and traffic manipulation.
+                    </div>
+                </a>
+
+                <a href="mots-evil-twin.html" class="module-card">
+                    <div class="module-card-title">2.5 MOTS and Evil Twin Attacks</div>
+                    <div class="module-card-desc">
+                        Man-on-the-Side attacks, QUANTUM operations, Evil Twin access points,
+                        captive portal exploitation, and Karma attacks.
+                    </div>
+                </a>
+
+                <a href="dns-attacks.html" class="module-card">
+                    <div class="module-card-title">2.6 DNS Attacks</div>
+                    <div class="module-card-desc">
+                        DNS cache poisoning, Kaminsky attack, DNS spoofing, DNS hijacking,
+                        DNS tunneling, and DNS rebinding attacks.
+                    </div>
+                </a>
+
+                <a href="tunneling-attacks.html" class="module-card">
+                    <div class="module-card-title">2.7 Tunneling and Covert Channels</div>
+                    <div class="module-card-desc">
+                        ICMP tunneling, DNS tunneling, HTTP/HTTPS tunneling, SSH pivoting,
+                        protocol encapsulation, and covert channel establishment.
+                    </div>
+                </a>
+
+                <a href="dos-attacks.html" class="module-card">
+                    <div class="module-card-title">2.8 Denial of Service Attacks</div>
+                    <div class="module-card-desc">
+                        DoS vs DDoS, volumetric attacks, protocol exploitation, SYN flood,
+                        amplification attacks, Slowloris, and botnet operations.
+                    </div>
+                </a>
+            </div>
+
+            <h2>Prerequisites</h2>
+
+            <p>
+                Personnel must complete Module 1 (Networking Fundamentals) before engaging with this
+                material. Thorough understanding of the following concepts is required:
+            </p>
+
+            <ul>
+                <li>TCP/IP protocol stack and OSI model</li>
+                <li>IP addressing and subnetting</li>
+                <li>MAC addressing and ARP operations</li>
+                <li>DNS resolution process</li>
+                <li>TCP connection establishment and termination</li>
+            </ul>
+
+            <div class="technical-block">
+                <div class="technical-block-title">Operational Security Notice</div>
+                <p>
+                    Techniques documented in this module are intended for authorized security testing,
+                    network defense research, and educational purposes only. Unauthorized use of these
+                    techniques against systems without explicit permission constitutes a criminal offense
+                    under applicable computer crime statutes.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Module 2: Network Attack Concepts // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

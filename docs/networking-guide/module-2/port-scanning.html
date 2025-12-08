@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Section 2.1: Port Scanning and Reconnaissance - Comprehensive coverage of TCP/UDP scanning techniques, OS fingerprinting, and evasion methods.">
+    <title>2.1 PORT SCANNING | MODULE 2 | FIELD MANUAL</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    <div class="classification-banner">
+        UNCLASSIFIED // MODULE 2 // SECTION 2.1 // PORT SCANNING
+    </div>
+
+    <header class="site-header">
+        <h1 class="site-title">Section 2.1</h1>
+        <p class="site-subtitle">Port Scanning and Reconnaissance</p>
+    </header>
+
+    <nav class="nav-main">
+        <ul class="nav-list">
+            <li><a href="../index.html" class="nav-link">HOME</a></li>
+            <li><a href="index.html" class="nav-link">MODULE 2</a></li>
+            <li><a href="arp-attacks.html" class="nav-link">NEXT: ARP ATTACKS</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div class="content-wrapper">
+            <nav class="breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <a href="index.html">Module 2</a>
+                <span class="breadcrumb-separator">/</span>
+                <span>2.1 Port Scanning</span>
+            </nav>
+
+            <p class="section-marker">// SECTION 2.1</p>
+            <h1>Port Scanning and Reconnaissance</h1>
+
+            <!-- ============================================
+                 INTRODUCTION
+                 ============================================ -->
+            <h2>Overview</h2>
+
+            <p>
+                <strong>Port scanning</strong> is a reconnaissance technique used to identify open ports,
+                running services, and potential vulnerabilities on target systems. As the initial phase
+                of most network attacks, port scanning provides the intelligence necessary to plan
+                subsequent exploitation. Understanding scanning techniques is essential for both offensive
+                operations and defensive monitoring.
+            </p>
+
+            <p>
+                Port scanning exploits the fundamental behavior of TCP and UDP protocols. By sending
+                carefully crafted packets and analyzing responses, an attacker can determine port states,
+                identify services, and fingerprint operating systems without establishing full connections.
+            </p>
+
+            <div class="definition-block">
+                <div class="definition-term">Port Scanning</div>
+                <div class="definition-desc">
+                    A reconnaissance method that sends packets to target ports and analyzes responses to
+                    determine port states (open, closed, filtered) and identify running services.
+                </div>
+            </div>
+
+            <!-- ============================================
+                 PORT STATES
+                 ============================================ -->
+            <h2>Port State Classification</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Description</th>
+                        <th>Indicator</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Open</td>
+                        <td>Application actively accepting connections</td>
+                        <td>SYN-ACK response (TCP), Application response (UDP)</td>
+                    </tr>
+                    <tr>
+                        <td>Closed</td>
+                        <td>Port accessible but no application listening</td>
+                        <td>RST response (TCP), ICMP unreachable (UDP)</td>
+                    </tr>
+                    <tr>
+                        <td>Filtered</td>
+                        <td>Firewall blocking probe packets</td>
+                        <td>No response, ICMP unreachable (admin prohibited)</td>
+                    </tr>
+                    <tr>
+                        <td>Unfiltered</td>
+                        <td>Port accessible, state undetermined</td>
+                        <td>ACK scan detects accessibility only</td>
+                    </tr>
+                    <tr>
+                        <td>Open|Filtered</td>
+                        <td>Cannot determine if open or filtered</td>
+                        <td>No response (UDP, FIN, NULL, XMAS scans)</td>
+                    </tr>
+                    <tr>
+                        <td>Closed|Filtered</td>
+                        <td>Cannot determine if closed or filtered</td>
+                        <td>IP ID idle scan edge case</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- ============================================
+                 TCP CONNECT SCAN
+                 ============================================ -->
+            <h2>TCP Connect Scan</h2>
+
+            <p>
+                The <strong>TCP Connect scan</strong> completes the full three-way handshake with each
+                target port. This is the most reliable but also most detectable scan type, as it creates
+                complete connections that are logged by target systems.
+            </p>
+
+            <div class="diagram">
+                TCP CONNECT SCAN (Full Handshake):
+
+                OPEN PORT:
+                SCANNER TARGET:80
+                | |
+                | SYN (SEQ=1000) |
+                |---------------------------------------------------->|
+                | |
+                | SYN-ACK (SEQ=2000, ACK=1001) |
+                |<----------------------------------------------------| | | | ACK (SEQ=1001, ACK=2001) |
+                    |---------------------------------------------------->|
+                    | |
+                    | [CONNECTION ESTABLISHED - Port is OPEN] |
+                    | |
+                    | RST (Tear down connection) |
+                    |---------------------------------------------------->|
+                    | |
+
+                    CLOSED PORT:
+                    SCANNER TARGET:81
+                    | |
+                    | SYN (SEQ=1000) |
+                    |---------------------------------------------------->|
+                    | |
+                    | RST-ACK |
+                    |<----------------------------------------------------| | | | [Port is CLOSED] | Detection: High -
+                        Full connection logged in target's connection logs Speed: Slow - Requires full handshake
+                        Privileges: None required - Uses system's connect() call </div>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">TCP Connect Scan Characteristics</div>
+                            <ul>
+                                <li><strong>Reliability:</strong> Highest - definitive open/closed determination</li>
+                                <li><strong>Stealth:</strong> Lowest - connections fully logged</li>
+                                <li><strong>Privileges:</strong> No root/admin required</li>
+                                <li><strong>Speed:</strong> Slow - full handshake per port</li>
+                                <li><strong>Use Case:</strong> When raw socket access unavailable</li>
+                            </ul>
+                        </div>
+
+                        <!-- ============================================
+                 SYN SCAN
+                 ============================================ -->
+                        <h2>SYN Scan (Half-Open/Stealth Scan)</h2>
+
+                        <p>
+                            The <strong>SYN scan</strong> is the most popular scanning technique, often called
+                            "half-open" or "stealth" scanning. It sends SYN packets but never completes the
+                            handshake, reducing the likelihood of connection logging on target systems.
+                        </p>
+
+                        <div class="diagram">
+                            SYN SCAN (Half-Open):
+
+                            OPEN PORT:
+                            SCANNER TARGET:22
+                            | |
+                            | SYN (SEQ=1000) |
+                            |---------------------------------------------------->|
+                            | |
+                            | SYN-ACK (SEQ=2000, ACK=1001) |
+                            |<----------------------------------------------------| | | | RST (Abort - Never complete
+                                handshake) | |---------------------------------------------------->|
+                                | |
+                                | [Port is OPEN - SYN-ACK received] |
+
+                                CLOSED PORT:
+                                SCANNER TARGET:23
+                                | |
+                                | SYN (SEQ=1000) |
+                                |---------------------------------------------------->|
+                                | |
+                                | RST-ACK |
+                                |<----------------------------------------------------| | | | [Port is CLOSED - RST
+                                    received] | FILTERED PORT: SCANNER TARGET:24 | | | SYN (SEQ=1000) |
+                                    |---------------------------------------------------->|
+                                    | |
+                                    | (No response - Firewall dropping) |
+                                    | ...TIMEOUT... |
+                                    | |
+                                    | [Port is FILTERED - No response] |
+
+                                    Key: Connection never established = Less likely to be logged
+                                    Requires raw socket privileges (root/admin)
+                        </div>
+
+                        <div class="technical-block">
+                            <div class="technical-block-title">SYN Scan Analysis</div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Response</th>
+                                        <th>Interpretation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>SYN-ACK</td>
+                                        <td>Port OPEN - Service listening</td>
+                                    </tr>
+                                    <tr>
+                                        <td>RST</td>
+                                        <td>Port CLOSED - No service, port accessible</td>
+                                    </tr>
+                                    <tr>
+                                        <td>No response</td>
+                                        <td>Port FILTERED - Firewall blocking</td>
+                                    </tr>
+                                    <tr>
+                                        <td>ICMP Unreachable</td>
+                                        <td>Port FILTERED - Firewall rejecting</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- ============================================
+                 FIN SCAN
+                 ============================================ -->
+                        <h2>FIN Scan</h2>
+
+                        <p>
+                            The <strong>FIN scan</strong> sends TCP packets with only the FIN flag set. According
+                            to RFC 793, closed ports should respond with RST while open ports should ignore the
+                            packet. This behavior can bypass some stateless firewalls.
+                        </p>
+
+                        <div class="diagram">
+                            FIN SCAN:
+
+                            Packet Structure:
+                            +-------+-------+-------+-------+-------+-------+
+                            | URG | ACK | PSH | RST | SYN | FIN |
+                            | 0 | 0 | 0 | 0 | 0 | 1 |
+                            +-------+-------+-------+-------+-------+-------+
+                            ^^^^
+                            Only FIN flag set
+
+                            OPEN PORT (RFC-compliant):
+                            SCANNER TARGET:80
+                            | |
+                            | FIN |
+                            |---------------------------------------------------->|
+                            | |
+                            | (No response - Open port ignores FIN) |
+                            | |
+                            | [Port OPEN|FILTERED] |
+
+                            CLOSED PORT:
+                            SCANNER TARGET:81
+                            | |
+                            | FIN |
+                            |---------------------------------------------------->|
+                            | |
+                            | RST |
+                            |<----------------------------------------------------| | | | [Port CLOSED] | LIMITATION:
+                                Windows ignores RFC 793 - sends RST regardless Open ports indistinguishable from
+                                filtered </div>
+
+                                <!-- ============================================
+                 XMAS SCAN
+                 ============================================ -->
+                                <h2>XMAS Scan</h2>
+
+                                <p>
+                                    The <strong>XMAS scan</strong> (Christmas Tree scan) sets the FIN, PSH, and URG
+                                    flags
+                                    simultaneously. The name derives from the packet "lighting up" like a Christmas tree
+                                    when viewed in packet analysis tools.
+                                </p>
+
+                                <div class="diagram">
+                                    XMAS SCAN:
+
+                                    Packet Structure:
+                                    +-------+-------+-------+-------+-------+-------+
+                                    | URG | ACK | PSH | RST | SYN | FIN |
+                                    | 1 | 0 | 1 | 0 | 0 | 1 |
+                                    +-------+-------+-------+-------+-------+-------+
+                                    ^^^^ ^^^^ ^^^^
+                                    FIN, PSH, URG flags set ("Christmas tree")
+
+                                    OPEN PORT:
+                                    SCANNER TARGET:443
+                                    | |
+                                    | FIN+PSH+URG |
+                                    |---------------------------------------------------->|
+                                    | |
+                                    | (No response) |
+                                    | |
+                                    | [Port OPEN|FILTERED] |
+
+                                    CLOSED PORT:
+                                    SCANNER TARGET:444
+                                    | |
+                                    | FIN+PSH+URG |
+                                    |---------------------------------------------------->|
+                                    | |
+                                    | RST |
+                                    |<----------------------------------------------------| | | | [Port CLOSED] |
+                                        Advantage: May evade stateless firewalls checking SYN Limitation: Does not work
+                                        against Windows systems </div>
+
+                                        <!-- ============================================
+                 NULL SCAN
+                 ============================================ -->
+                                        <h2>NULL Scan</h2>
+
+                                        <p>
+                                            The <strong>NULL scan</strong> sends TCP packets with no flags set. Like FIN
+                                            and XMAS
+                                            scans, it relies on RFC 793 compliance for port state determination.
+                                        </p>
+
+                                        <div class="diagram">
+                                            NULL SCAN:
+
+                                            Packet Structure:
+                                            +-------+-------+-------+-------+-------+-------+
+                                            | URG | ACK | PSH | RST | SYN | FIN |
+                                            | 0 | 0 | 0 | 0 | 0 | 0 |
+                                            +-------+-------+-------+-------+-------+-------+
+                                            No flags set (NULL)
+
+                                            OPEN PORT:
+                                            | (No flags) |
+                                            |---------------------------------------------------->|
+                                            | (No response) |
+                                            | [Port OPEN|FILTERED] |
+
+                                            CLOSED PORT:
+                                            | (No flags) |
+                                            |---------------------------------------------------->|
+                                            | RST |
+                                            |<----------------------------------------------------| | [Port CLOSED] |
+                                                </div>
+
+                                                <div class="technical-block">
+                                                    <div class="technical-block-title">FIN/XMAS/NULL Scan Comparison
+                                                    </div>
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Scan Type</th>
+                                                                <th>Flags Set</th>
+                                                                <th>Advantage</th>
+                                                                <th>Limitation</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>FIN</td>
+                                                                <td>FIN only</td>
+                                                                <td>May bypass SYN filters</td>
+                                                                <td>Windows non-compliant</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td>XMAS</td>
+                                                                <td>FIN+PSH+URG</td>
+                                                                <td>Unique packet signature</td>
+                                                                <td>Windows non-compliant</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td>NULL</td>
+                                                                <td>None</td>
+                                                                <td>Minimal packet footprint</td>
+                                                                <td>Windows non-compliant</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                                <!-- ============================================
+                 ACK SCAN
+                 ============================================ -->
+                                                <h2>ACK Scan</h2>
+
+                                                <p>
+                                                    The <strong>ACK scan</strong> sends packets with only the ACK flag
+                                                    set. Unlike other
+                                                    scans, ACK scanning does not determine if ports are open or closed.
+                                                    Instead, it maps
+                                                    firewall rulesets by determining which ports are filtered versus
+                                                    unfiltered.
+                                                </p>
+
+                                                <div class="diagram">
+                                                    ACK SCAN (Firewall Mapping):
+
+                                                    Packet Structure:
+                                                    +-------+-------+-------+-------+-------+-------+
+                                                    | URG | ACK | PSH | RST | SYN | FIN |
+                                                    | 0 | 1 | 0 | 0 | 0 | 0 |
+                                                    +-------+-------+-------+-------+-------+-------+
+                                                    ^^^^
+                                                    Only ACK flag set
+
+                                                    UNFILTERED PORT (Open OR Closed - Both respond same):
+                                                    SCANNER TARGET:80
+                                                    | |
+                                                    | ACK |
+                                                    |---------------------------------------------------->|
+                                                    | |
+                                                    | RST (Port accessible, state unknown) |
+                                                    |<----------------------------------------------------| | | | [Port
+                                                        UNFILTERED - Firewall allows access] | FILTERED PORT: SCANNER
+                                                        TARGET:81 | | | ACK |
+                                                        |---------------------------------------------------->|
+                                                        | |
+                                                        | (No response or ICMP unreachable) |
+                                                        | |
+                                                        | [Port FILTERED - Firewall blocking] |
+
+                                                        USE CASE: Map firewall rules, not service detection
+                                                        Combine with SYN scan for complete picture
+                                                </div>
+
+                                                <!-- ============================================
+                 WINDOW SCAN
+                 ============================================ -->
+                                                <h2>Window Scan</h2>
+
+                                                <p>
+                                                    The <strong>Window scan</strong> is similar to ACK scan but examines
+                                                    the TCP Window
+                                                    field in RST responses. Some implementations return different window
+                                                    values for open
+                                                    versus closed ports, allowing port state determination through
+                                                    firewall rulesets.
+                                                </p>
+
+                                                <div class="diagram">
+                                                    WINDOW SCAN:
+
+                                                    OPEN PORT (Some implementations):
+                                                    | ACK |
+                                                    |---------------------------------------------------->|
+                                                    | RST (Window = non-zero, e.g., 1024) |
+                                                    |<----------------------------------------------------| | [Port OPEN
+                                                        - Non-zero window in RST] | CLOSED PORT: | ACK |
+                                                        |---------------------------------------------------->|
+                                                        | RST (Window = 0) |
+                                                        |<----------------------------------------------------| | [Port
+                                                            CLOSED - Zero window in RST] | LIMITATION: Behavior varies
+                                                            by OS/TCP stack implementation Not reliable across all
+                                                            systems </div>
+
+                                                            <!-- ============================================
+                 MAIMON SCAN
+                 ============================================ -->
+                                                            <h2>Maimon Scan</h2>
+
+                                                            <p>
+                                                                The <strong>Maimon scan</strong> sends packets with FIN
+                                                                and ACK flags set. Named after
+                                                                its discoverer, Uriel Maimon, this technique exploits a
+                                                                quirk in some BSD-derived
+                                                                TCP stacks that drop packets to open ports rather than
+                                                                responding with RST.
+                                                            </p>
+
+                                                            <div class="diagram">
+                                                                MAIMON SCAN:
+
+                                                                Packet Structure:
+                                                                +-------+-------+-------+-------+-------+-------+
+                                                                | URG | ACK | PSH | RST | SYN | FIN |
+                                                                | 0 | 1 | 0 | 0 | 0 | 1 |
+                                                                +-------+-------+-------+-------+-------+-------+
+                                                                ^^^^ ^^^^
+                                                                FIN + ACK flags set
+
+                                                                BSD-DERIVED SYSTEMS:
+                                                                Open Port: No response (packet dropped)
+                                                                Closed Port: RST response
+
+                                                                MODERN SYSTEMS: Most respond with RST regardless
+                                                                Limited effectiveness in current environments
+                                                            </div>
+
+                                                            <!-- ============================================
+                 UDP SCANNING
+                 ============================================ -->
+                                                            <h2>UDP Scanning</h2>
+
+                                                            <p>
+                                                                <strong>UDP scanning</strong> is significantly more
+                                                                challenging than TCP scanning due to
+                                                                UDP's connectionless nature. UDP does not provide
+                                                                acknowledgments, making open port
+                                                                detection unreliable without application-layer
+                                                                interaction.
+                                                            </p>
+
+                                                            <div class="diagram">
+                                                                UDP SCANNING:
+
+                                                                OPEN PORT (No response - ambiguous):
+                                                                SCANNER TARGET:53
+                                                                | |
+                                                                | UDP Datagram |
+                                                                |---------------------------------------------------->|
+                                                                | |
+                                                                | (No response - Could be open or filtered) |
+                                                                | |
+                                                                | [Port OPEN|FILTERED - Cannot determine] |
+
+                                                                OPEN PORT (Application response):
+                                                                SCANNER TARGET:53
+                                                                | |
+                                                                | UDP Datagram (DNS query) |
+                                                                |---------------------------------------------------->|
+                                                                | |
+                                                                | UDP Response (DNS answer) |
+                                                                |<----------------------------------------------------|
+                                                                    | | | [Port OPEN - Application responded] | CLOSED
+                                                                    PORT: SCANNER TARGET:54 | | | UDP Datagram |
+                                                                    |---------------------------------------------------->|
+                                                                    | |
+                                                                    | ICMP Port Unreachable |
+                                                                    |<----------------------------------------------------|
+                                                                        | | | [Port CLOSED - ICMP response received] |
+                                                                        CHALLENGES: - Most open UDP ports do not respond
+                                                                        to arbitrary data - ICMP rate limiting slows
+                                                                        closed port detection - Firewalls often block
+                                                                        ICMP unreachable messages </div>
+
+                                                                        <div class="technical-block">
+                                                                            <div class="technical-block-title">UDP Scan
+                                                                                Optimization</div>
+                                                                            <ul>
+                                                                                <li><strong>Version Detection:</strong>
+                                                                                    Send protocol-specific probes (DNS,
+                                                                                    SNMP, NTP)</li>
+                                                                                <li><strong>Payload Matching:</strong>
+                                                                                    Use appropriate payload for expected
+                                                                                    service</li>
+                                                                                <li><strong>Rate Limiting:</strong> Slow
+                                                                                    scan to avoid ICMP rate limits</li>
+                                                                                <li><strong>Top Ports:</strong> Focus on
+                                                                                    common UDP services first</li>
+                                                                            </ul>
+                                                                        </div>
+
+                                                                        <!-- ============================================
+                 OS FINGERPRINTING
+                 ============================================ -->
+                                                                        <h2>Operating System Fingerprinting</h2>
+
+                                                                        <p>
+                                                                            <strong>OS fingerprinting</strong>
+                                                                            identifies the target's operating system by
+                                                                            analyzing
+                                                                            subtle differences in TCP/IP stack
+                                                                            implementations. Different operating systems
+                                                                            implement
+                                                                            network protocols with slight variations
+                                                                            that create identifiable signatures.
+                                                                        </p>
+
+                                                                        <h3>Active Fingerprinting</h3>
+
+                                                                        <p>
+                                                                            Active fingerprinting sends specially
+                                                                            crafted packets and analyzes responses. This
+                                                                            method is more accurate but detectable.
+                                                                        </p>
+
+                                                                        <div class="technical-block">
+                                                                            <div class="technical-block-title">Active
+                                                                                Fingerprinting Techniques</div>
+                                                                            <table>
+                                                                                <thead>
+                                                                                    <tr>
+                                                                                        <th>Probe Type</th>
+                                                                                        <th>Analyzed Field</th>
+                                                                                        <th>OS Variance</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                    <tr>
+                                                                                        <td>TCP SYN</td>
+                                                                                        <td>Initial TTL</td>
+                                                                                        <td>Linux: 64, Windows: 128,
+                                                                                            Cisco: 255</td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>TCP SYN</td>
+                                                                                        <td>Window Size</td>
+                                                                                        <td>Varies by OS and version
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>TCP SYN</td>
+                                                                                        <td>DF Bit (Don't Fragment)</td>
+                                                                                        <td>Set/unset varies by OS</td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>TCP Options</td>
+                                                                                        <td>Option order and values</td>
+                                                                                        <td>MSS, Window Scale,
+                                                                                            Timestamps</td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>ICMP Echo</td>
+                                                                                        <td>Response characteristics
+                                                                                        </td>
+                                                                                        <td>Payload echo, code values
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                        <td>Invalid Flags</td>
+                                                                                        <td>Response to illegal
+                                                                                            combinations</td>
+                                                                                        <td>RST behavior, ICMP responses
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+
+                                                                        <div class="diagram">
+                                                                            OS FINGERPRINT SIGNATURE EXAMPLE:
+
+                                                                            WINDOWS 10:
+                                                                            TTL=128, Window=65535, DF=yes
+                                                                            TCP Options: MSS, NOP, WScale, NOP, NOP,
+                                                                            SACK
+
+                                                                            LINUX 5.x:
+                                                                            TTL=64, Window=29200, DF=yes
+                                                                            TCP Options: MSS, SACK, Timestamp, NOP,
+                                                                            WScale
+
+                                                                            FreeBSD 12:
+                                                                            TTL=64, Window=65535, DF=yes
+                                                                            TCP Options: MSS, NOP, WScale, SACK,
+                                                                            Timestamp
+                                                                        </div>
+
+                                                                        <h3>Passive Fingerprinting</h3>
+
+                                                                        <p>
+                                                                            Passive fingerprinting analyzes traffic
+                                                                            without sending any packets. By observing
+                                                                            normal communications, the target's OS can
+                                                                            be identified without detection.
+                                                                        </p>
+
+                                                                        <div class="technical-block">
+                                                                            <div class="technical-block-title">Passive
+                                                                                Fingerprinting Sources</div>
+                                                                            <ul>
+                                                                                <li><strong>Initial TTL:</strong> Infer
+                                                                                    from received TTL + hop count</li>
+                                                                                <li><strong>Window Size:</strong>
+                                                                                    Observe in captured traffic</li>
+                                                                                <li><strong>TCP Options:</strong> Order
+                                                                                    and presence in SYN packets</li>
+                                                                                <li><strong>HTTP Headers:</strong>
+                                                                                    User-Agent, Server headers</li>
+                                                                                <li><strong>Protocol Behavior:</strong>
+                                                                                    Timing, retransmission patterns</li>
+                                                                            </ul>
+                                                                        </div>
+
+                                                                        <!-- ============================================
+                 SERVICE DETECTION
+                 ============================================ -->
+                                                                        <h2>Service and Version Detection</h2>
+
+                                                                        <p>
+                                                                            Beyond port state identification,
+                                                                            <strong>service detection</strong>
+                                                                            determines what
+                                                                            application is listening and its version.
+                                                                            This information is critical for identifying
+                                                                            vulnerable software versions.
+                                                                        </p>
+
+                                                                        <div class="diagram">
+                                                                            SERVICE DETECTION PROCESS:
+
+                                                                            1. PORT IDENTIFIED AS OPEN
+                                                                            +-------+
+                                                                            | TCP 22| OPEN
+                                                                            +-------+
+                                                                            |
+                                                                            v
+                                                                            2. BANNER GRABBING (Wait for service banner)
+                                                                            +----------------------------------------+
+                                                                            | SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.1|
+                                                                            +----------------------------------------+
+                                                                            |
+                                                                            v
+                                                                            3. PROBE MATCHING (Send protocol-specific
+                                                                            probes)
+                                                                            SCANNER: "SSH-2.0-Scanner\r\n"
+                                                                            TARGET: Protocol version exchange
+                                                                            |
+                                                                            v
+                                                                            4. VERSION EXTRACTION
+                                                                            +-------------------------------------------+
+                                                                            | Service: SSH |
+                                                                            | Version: OpenSSH 8.2p1 |
+                                                                            | OS Hint: Ubuntu Linux |
+                                                                            | CPE: cpe:/a:openbsd:openssh:8.2p1 |
+                                                                            +-------------------------------------------+
+
+                                                                            COMMON BANNER EXAMPLES:
+                                                                            Port 21: 220 (vsFTPd 3.0.3)
+                                                                            Port 22: SSH-2.0-OpenSSH_8.2p1
+                                                                            Port 25: 220 mail.example.com ESMTP Postfix
+                                                                            Port 80: HTTP/1.1 200 OK\r\nServer:
+                                                                            Apache/2.4.41
+                                                                            Port 3306: 5.7.30-0ubuntu0.18.04.1
+                                                                        </div>
+
+                                                                        <!-- ============================================
+                 SCAN EVASION
+                 ============================================ -->
+                                                                        <h2>Scan Timing and Evasion</h2>
+
+                                                                        <p>
+                                                                            Scan evasion techniques reduce detection
+                                                                            probability by security monitoring systems.
+                                                                            Timing controls slow scans to avoid
+                                                                            triggering rate-based alerts.
+                                                                        </p>
+
+                                                                        <table>
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Timing Template</th>
+                                                                                    <th>Description</th>
+                                                                                    <th>Use Case</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <tr>
+                                                                                    <td>T0 (Paranoid)</td>
+                                                                                    <td>5 minutes between probes</td>
+                                                                                    <td>IDS evasion, extreme stealth
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td>T1 (Sneaky)</td>
+                                                                                    <td>15 seconds between probes</td>
+                                                                                    <td>IDS evasion</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td>T2 (Polite)</td>
+                                                                                    <td>0.4 seconds between probes</td>
+                                                                                    <td>Reduce bandwidth, host impact
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td>T3 (Normal)</td>
+                                                                                    <td>Default timing</td>
+                                                                                    <td>Standard scanning</td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td>T4 (Aggressive)</td>
+                                                                                    <td>Parallel, fast timing</td>
+                                                                                    <td>Fast scans, reliable networks
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                    <td>T5 (Insane)</td>
+                                                                                    <td>Maximum parallelization</td>
+                                                                                    <td>Speed priority, may miss ports
+                                                                                    </td>
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+
+                                                                        <h3>Additional Evasion Techniques</h3>
+
+                                                                        <div class="technical-block">
+                                                                            <div class="technical-block-title">Scan
+                                                                                Evasion Methods</div>
+                                                                            <ul>
+                                                                                <li><strong>Fragmentation:</strong>
+                                                                                    Split probes across multiple IP
+                                                                                    fragments</li>
+                                                                                <li><strong>Decoys:</strong> Spoof
+                                                                                    additional source IPs to hide real
+                                                                                    scanner</li>
+                                                                                <li><strong>Idle Scan:</strong> Use
+                                                                                    zombie host to obscure scanner
+                                                                                    identity</li>
+                                                                                <li><strong>Source Port:</strong> Use
+                                                                                    trusted ports (53, 80) as source
+                                                                                </li>
+                                                                                <li><strong>Randomization:</strong>
+                                                                                    Randomize port order, timing</li>
+                                                                                <li><strong>MTU Reduction:</strong>
+                                                                                    Force fragmentation with small MTU
+                                                                                </li>
+                                                                            </ul>
+                                                                        </div>
+
+                                                                        <div class="diagram">
+                                                                            IDLE (ZOMBIE) SCAN:
+
+                                                                            1. Find zombie host with predictable IP ID
+                                                                            sequence
+                                                                            2. Probe zombie to get current IP ID: 1000
+
+                                                                            SCANNER ZOMBIE TARGET
+                                                                            | | |
+                                                                            | SYN (spoofed src=ZOMBIE) to TARGET:80 |
+                                                                            |------------------------------------------------>|
+                                                                            | | |
+                                                                            | | SYN-ACK (to ZOMBIE) |
+                                                                            | |<------------------------| | | | | | RST
+                                                                                (unsolicited) | |
+                                                                                |------------------------>|
+                                                                                | | (ZOMBIE IP ID++) |
+                                                                                | | |
+                                                                                | Probe ZOMBIE for IP ID |
+                                                                                |<--------------------->| |
+                                                                                    | IP ID = 1002 (incremented by 2) |
+                                                                                    | |
+                                                                                    | CONCLUSION: Port OPEN |
+                                                                                    | (If closed, zombie IP ID would be
+                                                                                    1001) |
+
+                                                                                    Advantage: Scanner IP never appears
+                                                                                    in target logs
+                                                                                    Extremely stealthy when zombie found
+                                                                        </div>
+
+                                                                        <!-- ============================================
+                 SECTION SUMMARY
+                 ============================================ -->
+                                                                        <h2>Section Summary</h2>
+
+                                                                        <p>
+                                                                            This section covered port scanning and
+                                                                            reconnaissance techniques:
+                                                                        </p>
+
+                                                                        <ul>
+                                                                            <li>Port state classification: open, closed,
+                                                                                filtered</li>
+                                                                            <li>TCP Connect scan: full handshake, high
+                                                                                reliability, high visibility</li>
+                                                                            <li>SYN scan: half-open, stealth, requires
+                                                                                privileges</li>
+                                                                            <li>FIN/XMAS/NULL scans: RFC 793
+                                                                                exploitation, BSD-focused</li>
+                                                                            <li>ACK scan: firewall mapping, not port
+                                                                                state detection</li>
+                                                                            <li>Window/Maimon scans:
+                                                                                implementation-specific behaviors</li>
+                                                                            <li>UDP scanning: challenges and
+                                                                                optimization</li>
+                                                                            <li>OS fingerprinting: active and passive
+                                                                                techniques</li>
+                                                                            <li>Service/version detection: banner
+                                                                                grabbing, probe matching</li>
+                                                                            <li>Scan evasion: timing, fragmentation,
+                                                                                decoys, idle scan</li>
+                                                                        </ul>
+
+                                                                        <div class="technical-block">
+                                                                            <div class="technical-block-title">Key
+                                                                                Takeaways</div>
+                                                                            <ul>
+                                                                                <li>SYN scan is the default for most
+                                                                                    reconnaissance operations</li>
+                                                                                <li>FIN/XMAS/NULL scans are ineffective
+                                                                                    against Windows</li>
+                                                                                <li>UDP scanning is slow and unreliable
+                                                                                    without protocol probes</li>
+                                                                                <li>OS fingerprinting enables targeted
+                                                                                    vulnerability assessment</li>
+                                                                                <li>Evasion techniques are critical for
+                                                                                    operational security</li>
+                                                                            </ul>
+                                                                        </div>
+
+                                                                        <h2>Navigation</h2>
+                                                                        <p>
+                                                                            <a href="index.html" class="nav-link"
+                                                                                style="display: inline-block;">RETURN TO
+                                                                                MODULE 2 INDEX</a>
+                                                                            <span
+                                                                                style="margin: 0 1rem; color: var(--text-muted);">|</span>
+                                                                            <a href="arp-attacks.html" class="nav-link"
+                                                                                style="display: inline-block;">PROCEED
+                                                                                TO SECTION 2.2: ARP ATTACKS</a>
+                                                                        </p>
+                                                            </div>
+    </main>
+
+    <footer class="site-footer">
+        <p class="footer-text">
+            Section 2.1: Port Scanning // Module 2 // Field Manual<br>
+            Classification: Unclassified
+        </p>
+    </footer>
+</body>
+
+</html>
