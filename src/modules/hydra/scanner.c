@@ -8,8 +8,7 @@
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-#include "../../include/vanguard.h"
-#include "../../include/platform.h"
+// Headers included via main.c (unity build)
 #include <time.h>
 
 // ─── WIFI NETWORK SCANNER ───────────────────────────────────────────────

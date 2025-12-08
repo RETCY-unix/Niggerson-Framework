@@ -9,9 +9,9 @@
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-#include "../../include/vanguard.h"
-#include "../../include/platform.h"
+// Headers included via main.c (unity build)
 #include <time.h>
+#include <sys/stat.h>
 
 // ─── HELP ───────────────────────────────────────────────────────────────
 void zawarudo_help(void) {

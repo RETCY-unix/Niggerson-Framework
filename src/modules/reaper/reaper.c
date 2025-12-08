@@ -6,8 +6,7 @@
  * ═══════════════════════════════════════════════════════════════════════
  */
 
-#include "../../include/vanguard.h"
-#include "../../include/platform.h"
+// Headers included via main.c (unity build)
 
 // ─── GLOBAL STATE ───────────────────────────────────────────────────────
 static volatile int reaper_running = 0;
