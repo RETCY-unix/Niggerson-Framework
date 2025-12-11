@@ -21,13 +21,22 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
 
 /* ═══════════════════════════════════════════════════════════════════════════
  *  ATTACK MODES
  * ═══════════════════════════════════════════════════════════════════════════ */
 
+#ifndef REAPER_MODE_T_DEFINED
+#define REAPER_MODE_T_DEFINED
 typedef enum {
     REAPER_MODE_DOS        = 0x01,   // ARP poison only (disconnect target)
     REAPER_MODE_INTERCEPT  = 0x02,   // Full MITM with packet capture
@@ -36,6 +45,7 @@ typedef enum {
     REAPER_MODE_HARVEST    = 0x10,   // Credential harvesting
     REAPER_MODE_FULL       = 0xFF    // All modes active
 } reaper_mode_t;
+#endif
 
 typedef enum {
     PROTO_UNKNOWN = 0,

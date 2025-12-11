@@ -71,6 +71,8 @@ void hydra_service_detect(const char* target, int port);  // Banner grab / versi
 void hydra_service_scan(const char* target, int start_port, int end_port);
 
 // ─── REAPER MODULE (Silent Interception Engine) ─────────────────────────
+#ifndef REAPER_MODE_T_DEFINED
+#define REAPER_MODE_T_DEFINED
 typedef enum {
     REAPER_MODE_DOS        = 0x01,
     REAPER_MODE_INTERCEPT  = 0x02,
@@ -79,6 +81,7 @@ typedef enum {
     REAPER_MODE_HARVEST    = 0x10,
     REAPER_MODE_FULL       = 0xFF
 } reaper_mode_t;
+#endif
 
 void reaper_poison(const char* target_ip, const char* gateway_ip);
 int  reaper_intercept(const char* target_ip, const char* gateway_ip, reaper_mode_t mode);

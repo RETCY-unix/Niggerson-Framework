@@ -22,9 +22,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>

@@ -167,9 +167,15 @@ void print_help(void) {
     printf("  hydra scan <IP> -fragment   Enable packet fragmentation\n");
     printf("  hydra service <IP> <PORT>   Banner grab / version detect\n\n");
     
-    printf(COLOR_YELLOW "REAPER" COLOR_RESET " - MITM Attacks\n");
-    printf("  reaper poison <target> <gateway>  ARP poison attack\n");
-    printf("  reaper stop                       Stop ongoing attack\n\n");
+    printf(COLOR_YELLOW "REAPER" COLOR_RESET " - Silent Interception\n");
+    printf("  reaper poison <target> <gateway>    ARP poison (DoS)\n");
+    printf("  reaper intercept <target> <gw>      Full MITM + capture\n");
+    printf("  reaper harvest <target> <gateway>   Credential harvesting\n");
+    printf("  reaper dns <domain> <fake_ip>       Add DNS spoof rule\n");
+    printf("  reaper spoof-mac [MAC|random]       Spoof interface MAC\n");
+    printf("  reaper restore-mac                  Restore original MAC\n");
+    printf("  reaper status                       Show attack stats\n");
+    printf("  reaper stop                         Stop + restore ARP\n\n");
     
     printf(COLOR_YELLOW "ZAWARUDO" COLOR_RESET " - Payload Generator\n");
     printf("  zawarudo help        Show payload options\n");
