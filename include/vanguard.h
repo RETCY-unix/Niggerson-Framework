@@ -70,10 +70,24 @@ void hydra_scan_ports_advanced(const char* target,
 void hydra_service_detect(const char* target, int port);  // Banner grab / version detect
 void hydra_service_scan(const char* target, int start_port, int end_port);
 
-// ─── REAPER MODULE (MITM / ARP Poison) ──────────────────────────────────
+// ─── REAPER MODULE (Silent Interception Engine) ─────────────────────────
+typedef enum {
+    REAPER_MODE_DOS        = 0x01,
+    REAPER_MODE_INTERCEPT  = 0x02,
+    REAPER_MODE_DNS_SPOOF  = 0x04,
+    REAPER_MODE_HTTP_INJECT= 0x08,
+    REAPER_MODE_HARVEST    = 0x10,
+    REAPER_MODE_FULL       = 0xFF
+} reaper_mode_t;
+
 void reaper_poison(const char* target_ip, const char* gateway_ip);
+int  reaper_intercept(const char* target_ip, const char* gateway_ip, reaper_mode_t mode);
 void reaper_stop(void);
 int  reaper_is_running(void);
+void reaper_status(void);
+int  reaper_spoof_mac(const char* mac_str);
+int  reaper_restore_mac(void);
+void reaper_dns_add(const char* domain, const char* fake_ip);
 
 // ─── ZAWARUDO MODULE (Linux Payload Generator) ──────────────────────────
 void zawarudo_create(const char* args);
