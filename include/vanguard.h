@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <errno.h>
+#include <stdbool.h>
 
 // Network headers
 #include <sys/socket.h>
@@ -55,10 +56,19 @@ void shell_print(const char* text);
 void shell_print_color(const char* text, const char* color);
 void shell_clear(void);
 
-// ─── HYDRA MODULE (Network Scanner) ─────────────────────────────────────
-void hydra_scan_networks(void);          // WiFi network discovery
-void hydra_scan_devices(void);           // Device discovery on LAN
+// ─── HYDRA MODULE (Phantom Reconnaissance) ──────────────────────────────
+void hydra_scan_networks(void);                    // WiFi network discovery
+void hydra_scan_devices(const char* args);         // ARP device discovery (supports -passive)
 void hydra_scan_ports(const char* target, int start_port, int end_port);
+void hydra_scan_ports_advanced(const char* target, 
+                                int start_port, 
+                                int end_port,
+                                const char* mode,      // syn,ack,fin,xmas,null,udp
+                                const char* timing,    // paranoid,sneaky,polite,normal,aggressive,insane
+                                int decoy_count,       // Number of random decoys
+                                bool fragment);        // Enable fragmentation
+void hydra_service_detect(const char* target, int port);  // Banner grab / version detect
+void hydra_service_scan(const char* target, int start_port, int end_port);
 
 // ─── REAPER MODULE (MITM / ARP Poison) ──────────────────────────────────
 void reaper_poison(const char* target_ip, const char* gateway_ip);

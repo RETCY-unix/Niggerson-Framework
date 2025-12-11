@@ -152,19 +152,24 @@ void print_banner(void) {
 
 void print_help(void) {
     printf("\n");
-    printf(COLOR_CYAN "╔══════════════════════════════════════╗\n");
-    printf("║       VANGUARD COMMAND REFERENCE     ║\n");
-    printf("╚══════════════════════════════════════╝" COLOR_RESET "\n\n");
+    printf(COLOR_CYAN "╔══════════════════════════════════════════════════════════╗\n");
+    printf("║         VANGUARD COMMAND REFERENCE - APT GRADE           ║\n");
+    printf("╚══════════════════════════════════════════════════════════╝" COLOR_RESET "\n\n");
     
-    printf(COLOR_YELLOW "HYDRA" COLOR_RESET " - Network Discovery\n");
-    printf("  hydra networks       Scan nearby WiFi networks\n");
-    printf("  hydra devices        Find devices on your network\n");
-    printf("  hydra scan <IP>      Port scan a target\n");
-    printf("  hydra scan <IP> <start>-<end>  Scan port range\n\n");
+    printf(COLOR_YELLOW "HYDRA" COLOR_RESET " - Phantom Reconnaissance\n");
+    printf("  hydra networks              Scan nearby WiFi networks\n");
+    printf("  hydra devices               Find LAN devices (pure ARP)\n");
+    printf("  hydra devices -passive      Passive ARP listening\n");
+    printf("  hydra scan <IP> [ports]     Stealth port scan\n");
+    printf("  hydra scan <IP> -mode <m>   Scan mode: syn,ack,fin,xmas,null,udp\n");
+    printf("  hydra scan <IP> -timing <t> Timing: paranoid,sneaky,polite,normal,aggressive,insane\n");
+    printf("  hydra scan <IP> -decoys <n> Add n random decoy sources\n");
+    printf("  hydra scan <IP> -fragment   Enable packet fragmentation\n");
+    printf("  hydra service <IP> <PORT>   Banner grab / version detect\n\n");
     
     printf(COLOR_YELLOW "REAPER" COLOR_RESET " - MITM Attacks\n");
     printf("  reaper poison <target> <gateway>  ARP poison attack\n");
-    printf("  reaper stop          Stop ongoing attack\n\n");
+    printf("  reaper stop                       Stop ongoing attack\n\n");
     
     printf(COLOR_YELLOW "ZAWARUDO" COLOR_RESET " - Payload Generator\n");
     printf("  zawarudo help        Show payload options\n");
@@ -174,6 +179,12 @@ void print_help(void) {
     printf("  clear                Clear screen\n");
     printf("  help                 Show this help\n");
     printf("  exit                 Quit\n\n");
+    
+    printf(COLOR_CYAN "STEALTH FEATURES" COLOR_RESET "\n");
+    printf("  • Randomized source ports, IP IDs, TTL, TCP seq per packet\n");
+    printf("  • Adaptive timing with jitter\n");
+    printf("  • No external tool dependencies\n");
+    printf("  • Zero child processes / no forensic artifacts\n\n");
 }
 
 // ─── COMMAND PARSER ─────────────────────────────────────────────────────
@@ -212,31 +223,71 @@ void execute_command(char* cmd) {
             hydra_scan_networks();
         }
         else if (strncmp(args, "devices", 7) == 0) {
-            hydra_scan_devices();
+            char* device_args = args + 7;
+            while (*device_args == ' ') device_args++;
+            hydra_scan_devices(device_args);
+        }
+        else if (strncmp(args, "service", 7) == 0) {
+            // Parse: service <IP> <PORT>
+            char target[64] = "";
+            int port = 0;
+            char* svc_args = args + 7;
+            while (*svc_args == ' ') svc_args++;
+            
+            if (sscanf(svc_args, "%63s %d", target, &port) == 2) {
+                hydra_service_detect(target, port);
+            } else {
+                printf(COLOR_RED "[!] Usage: hydra service <IP> <PORT>" COLOR_RESET "\n");
+            }
         }
         else if (strncmp(args, "scan", 4) == 0) {
             char target[64] = "";
             int start_port = 1, end_port = 1000;
+            char mode[16] = "syn";
+            char timing[16] = "normal";
+            int decoys = 0;
+            int fragment = 0;
             
             char* scan_args = args + 4;
             while (*scan_args == ' ') scan_args++;
             
-            // Parse: scan <IP> [start-end]
+            // Parse target and port range
             char range[32] = "";
-            if (sscanf(scan_args, "%63s %31s", target, range) >= 1) {
-                if (strlen(range) > 0 && strchr(range, '-')) {
-                    sscanf(range, "%d-%d", &start_port, &end_port);
-                }
-                hydra_scan_ports(target, start_port, end_port);
+            sscanf(scan_args, "%63s", target);
+            
+            // Parse options
+            char* opt;
+            if ((opt = strstr(scan_args, "-mode "))) sscanf(opt + 6, "%15s", mode);
+            if ((opt = strstr(scan_args, "-timing "))) sscanf(opt + 8, "%15s", timing);
+            if ((opt = strstr(scan_args, "-decoys "))) sscanf(opt + 8, "%d", &decoys);
+            if (strstr(scan_args, "-fragment")) fragment = 1;
+            
+            // Parse port range (if specified after target)
+            char* space = strchr(scan_args, ' ');
+            if (space && space[1] >= '0' && space[1] <= '9') {
+                sscanf(space + 1, "%d-%d", &start_port, &end_port);
+            }
+            
+            if (strlen(target) > 0 && target[0] != '-') {
+                hydra_scan_ports_advanced(target, start_port, end_port, 
+                                          mode, timing, decoys, fragment);
             } else {
-                printf(COLOR_RED "[!] Usage: hydra scan <IP> [start-end]" COLOR_RESET "\n");
+                printf(COLOR_RED "[!] Usage: hydra scan <IP> [ports] [options]" COLOR_RESET "\n");
+                printf(COLOR_YELLOW "Options:" COLOR_RESET "\n");
+                printf("  -mode <syn|ack|fin|xmas|null|udp>\n");
+                printf("  -timing <0-5 or paranoid|sneaky|polite|normal|aggressive|insane>\n");
+                printf("  -decoys <count>\n");
+                printf("  -fragment\n");
             }
         }
         else {
-            printf(COLOR_YELLOW "[*] HYDRA Commands:" COLOR_RESET "\n");
-            printf("    hydra networks  - Scan nearby WiFi\n");
-            printf("    hydra devices   - Find LAN devices\n");
-            printf("    hydra scan <IP> - Port scan target\n");
+            printf(COLOR_YELLOW "[*] HYDRA - Phantom Reconnaissance:" COLOR_RESET "\n");
+            printf("    hydra networks           - Scan WiFi\n");
+            printf("    hydra devices            - Find LAN devices (pure ARP)\n");
+            printf("    hydra devices -passive   - Passive ARP listen\n");
+            printf("    hydra scan <IP> [ports]  - Stealth port scan\n");
+            printf("    hydra service <IP> <PORT>- Banner/version detect\n");
+            printf("  Options: -mode, -timing, -decoys, -fragment\n");
         }
         return;
     }
@@ -293,6 +344,9 @@ int main(int argc, char* argv[]) {
     
     // Setup signal handler
     signal(SIGINT, signal_handler);
+    
+    // Seed RNG
+    srand(time(NULL));
     
     // Print banner
     print_banner();
