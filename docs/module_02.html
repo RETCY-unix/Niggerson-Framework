@@ -1,0 +1,2844 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODULE 02: THE UNMAKING</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <h1>MODULE 02: THE UNMAKING</h1>
+    <p><a href="index.html" class="nav-item" style="display:inline-block;padding:8px 15px;">← BACK TO INDEX</a></p>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         MANIFESTO
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <div class="real-talk">
+        <strong>THE REALITY:</strong> Source code is a luxury. A comfort blanket for developers
+        who never leave their IDE. In the field, you don't get source code. You get a binary—a
+        dense blob of machine instructions, packed headers, and obfuscated data. No comments.
+        No variable names. No hand-holding. Just raw bytes that the CPU will execute without
+        question.<br><br>
+
+        Reverse engineering is the art of taking that binary apart, understanding its structure,
+        tracing its logic, and bending it to your will. This module teaches you to see what the
+        compiler tried to hide. We start with the anatomy of an executable—the skeleton that
+        holds everything together. Master this, and you can dissect any program on any platform.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART I: THE BINARY ANATOMY (AUTOPSY)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h2>Part I: The Binary Anatomy (Autopsy)</h2>
+
+    <p>
+        Every executable file follows a strict format. The operating system's loader reads this
+        format to understand where to place code in memory, which libraries to load, and where
+        execution begins. Without understanding this structure, you cannot analyze, modify, or
+        exploit binaries. We begin with Windows PE files, then contrast with Linux ELF.
+    </p>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE PE FILE FORMAT (WINDOWS)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h3>The PE File Format (Windows)</h3>
+
+    <p>
+        PE stands for <strong>Portable Executable</strong>. It's the format for .exe, .dll,
+        .sys, and other executable files on Windows. Despite the name, there's nothing
+        "portable" about it—it's deeply tied to Windows internals. The format has evolved
+        since Windows NT but maintains backward compatibility with DOS, which is why every
+        Windows executable starts with a DOS header.
+    </p>
+
+    <h4>Layer 1: The DOS Header (The Fossil)</h4>
+
+    <p>
+        Open any .exe in a hex editor. The first thing you see is the <strong>DOS Header</strong>—a
+        64-byte structure that exists purely for backward compatibility. If you ran a modern
+        Windows executable on DOS, it would print "This program cannot be run in DOS mode" and
+        exit. That message is the DOS stub, and the DOS header is what makes it work.
+    </p>
+
+    <div class="code-block">
+        DOS HEADER - First 64 bytes of every PE file
+        ═════════════════════════════════════════════════════════════════════════════
+
+        OFFSET HEX DUMP ASCII
+        ────── ──────────────────────────────────────────── ──────────────────
+        0x0000 4D 5A 90 00 03 00 00 00 04 00 00 00 FF FF 00 00 MZ..............
+        0x0010 B8 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00 ........@.......
+        0x0020 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ................
+        0x0030 00 00 00 00 00 00 00 00 00 00 00 00 80 00 00 00 ................
+        ▲▲▲▲▲▲▲▲
+        │
+        └─ e_lfanew (offset 0x3C)
+        Points to PE header!
+        Value: 0x00000080 (128)
+
+        ═════════════════════════════════════════════════════════════════════════════
+
+        CRITICAL FIELDS:
+        ─────────────────────────────────────────────────────────────────────────────
+
+        Offset 0x00-0x01: e_magic = 0x5A4D ('MZ' in little-endian)
+        ─────────────────────────────────────────────────
+        THE MAGIC NUMBER. Every PE file starts with 'MZ'.
+        Named after Mark Zbikowski, a DOS architect.
+        If these bytes aren't 'MZ', it's not a valid PE.
+
+        Offset 0x3C-0x3F: e_lfanew = 0x00000080 (example value)
+        ─────────────────────────────────────────────────
+        THE POINTER TO THE PE HEADER. This 4-byte value
+        tells the loader where the real PE header begins.
+        Skip to this offset to find the PE signature.
+
+        In our example: 0x80 = 128 bytes from file start.
+    </div>
+
+    <div class="real-talk">
+        <strong>Why does this matter?</strong> Malware authors sometimes corrupt or modify the
+        DOS header to confuse analysis tools. The <code>e_lfanew</code> field is particularly
+        important—if it points to garbage, static analysis fails. Always validate this pointer
+        before trusting it.
+    </div>
+
+    <h4>Layer 2: The PE Header (The Identity)</h4>
+
+    <p>
+        Follow the <code>e_lfanew</code> pointer (in our example, jump to offset 0x80). You'll
+        find the PE signature and headers that define the executable's identity.
+    </p>
+
+    <div class="code-block">
+        PE SIGNATURE AND HEADERS - Located at offset specified by e_lfanew
+        ═════════════════════════════════════════════════════════════════════════════
+
+        OFFSET HEX DUMP ASCII
+        ────── ──────────────────────────────────────────── ──────────────────
+        0x0080 50 45 00 00 64 86 06 00 12 34 56 78 00 00 00 00 PE..d....4Vx....
+        ▲▲▲▲▲▲▲▲▲▲ ▲▲▲▲▲ ▲▲▲▲▲ ▲▲▲▲▲▲▲▲▲▲▲
+        │ │ │ │
+        │ │ │ └─ TimeDateStamp (0x78563412)
+        │ │ │ Seconds since 1970. Compile time.
+        │ │ │
+        │ │ └─ NumberOfSections (0x0006)
+        │ │ This binary has 6 sections.
+        │ │
+        │ └─ Machine (0x8664)
+        │ 0x8664 = AMD64 (x64)
+        │ 0x014C = i386 (x86)
+        │ 0x01C4 = ARM
+        │
+        └─ PE Signature: 0x00004550 ('PE\0\0')
+        THE SECOND MAGIC NUMBER. Confirms this is a PE file.
+
+        0x0090 00 00 00 00 F0 00 22 00 0B 02 0E 00 00 10 00 00 ......"..........
+        ▲▲▲▲▲ ▲▲▲▲▲ ▲▲▲▲▲
+        │ │ │
+        │ │ └─ Magic (0x020B)
+        │ │ 0x010B = PE32 (32-bit)
+        │ │ 0x020B = PE32+ (64-bit)
+        │ │
+        │ └─ Characteristics (0x0022)
+        │ Bit flags defining file type:
+        │ 0x0002 = EXECUTABLE_IMAGE
+        │ 0x0020 = LARGE_ADDRESS_AWARE
+        │ 0x2000 = DLL
+        │
+        └─ SizeOfOptionalHeader (0x00F0 = 240 bytes)
+
+        ═════════════════════════════════════════════════════════════════════════════
+
+        IMAGE_FILE_HEADER STRUCTURE (20 bytes):
+        ─────────────────────────────────────────────────────────────────────────────
+
+        typedef struct _IMAGE_FILE_HEADER {
+        WORD Machine; // 0x8664 for x64
+        WORD NumberOfSections; // How many sections (.text, .data, etc.)
+        DWORD TimeDateStamp; // Unix timestamp of compilation
+        DWORD PointerToSymbolTable; // Usually 0 (debug info stripped)
+        DWORD NumberOfSymbols; // Usually 0
+        WORD SizeOfOptionalHeader; // Size of the next header
+        WORD Characteristics; // Flags (EXE, DLL, etc.)
+        } IMAGE_FILE_HEADER;
+    </div>
+
+    <p>
+        The <code>TimeDateStamp</code> field is forensically valuable. It supposedly contains
+        the compilation time. However, sophisticated malware often forges this value to
+        mislead analysts. A binary claiming to be from 1970 or 2099 is obviously lying.
+    </p>
+
+    <h4>Layer 3: The Optional Header (The Brain)</h4>
+
+    <p>
+        Despite its name, the <strong>Optional Header</strong> is not optional for executables—it's
+        mandatory. It contains the most critical information for execution, including where the
+        program starts running.
+    </p>
+
+    <div class="code-block">
+        OPTIONAL HEADER - The Control Center
+        ═════════════════════════════════════════════════════════════════════════════
+
+        For PE32+ (64-bit), the Optional Header is 240 bytes. Key fields:
+
+        OFFSET FIELD SIZE DESCRIPTION
+        ────── ───────────────────── ──── ───────────────────────────────────
+        0x00 Magic 2 0x020B = PE32+ (64-bit)
+        0x02 MajorLinkerVersion 1 Linker version (informational)
+        0x03 MinorLinkerVersion 1
+        0x04 SizeOfCode 4 Total size of .text sections
+        0x08 SizeOfInitializedData 4 Size of .data sections
+        0x0C SizeOfUninitializedData 4 Size of .bss sections
+
+        ┌─────────────────────────────────────────────────────────────────────────┐
+        │ 0x10 AddressOfEntryPoint 4 ████ THE GOLDEN OFFSET ████ │
+        │ ───────────────────────────────────────────────────────────────│
+        │ RVA (Relative Virtual Address) where execution BEGINS. │
+        │ This is the first instruction the CPU will execute. │
+        │ For malware analysis, this is TARGET #1. │
+        └─────────────────────────────────────────────────────────────────────────┘
+
+        0x14 BaseOfCode 4 RVA of .text section
+        0x18 ImageBase 8 Preferred load address (PE32+)
+        Usually 0x140000000 for EXEs
+        Usually 0x180000000 for DLLs
+        0x20 SectionAlignment 4 Alignment in memory (usually 0x1000)
+        0x24 FileAlignment 4 Alignment on disk (usually 0x200)
+        0x28 MajorOperatingSystemVer 2 Minimum OS version
+        ...
+        0x70 NumberOfRvaAndSizes 4 Number of data directories (usually 16)
+        0x74 DataDirectory[16] 128 Array of RVA/Size pairs for imports,
+        exports, resources, relocations, etc.
+    </div>
+
+    <div class="warn-banner">
+        <strong>AddressOfEntryPoint (OEP) — THE MOST IMPORTANT FIELD</strong><br><br>
+
+        This is the <strong>Original Entry Point</strong>. When Windows loads the executable,
+        it jumps to this address to begin execution. For legitimate programs, this points to
+        initialization code (usually CRT startup for C programs).<br><br>
+
+        For <strong>packed malware</strong>, OEP is a lie. Packers (like UPX, Themida, VMProtect)
+        replace the original code with a decompression stub. The modified OEP points to the
+        unpacker, which decrypts the real code at runtime, then jumps to the <em>real</em> OEP.<br><br>
+
+        <strong>Unpacking workflow:</strong><br>
+        1. Malware runs from fake OEP (unpacker stub)<br>
+        2. Unpacker decrypts/decompresses original code into memory<br>
+        3. Unpacker jumps to real OEP (original program starts)<br>
+        4. Analyst sets breakpoint on that jump to dump unpacked binary<br><br>
+
+        Finding the real OEP is often the primary goal of malware unpacking.
+    </div>
+
+    <div class="code-block">
+        OEP ANALYSIS EXAMPLE:
+        ═════════════════════════════════════════════════════════════════════════════
+
+        LEGITIMATE BINARY (not packed):
+        ─────────────────────────────────────────────────────────────────────────────
+        AddressOfEntryPoint = 0x00001420
+        ImageBase = 0x0000000140000000
+
+        Actual Entry Point = ImageBase + OEP
+        = 0x140000000 + 0x1420
+        = 0x0000000140001420
+
+        At this address, you'll find legitimate initialization:
+
+        0x140001420: sub rsp, 28h ; Allocate shadow space
+        0x140001424: call __security_init_cookie
+        0x140001429: call _main ; Your main() function
+
+        ═════════════════════════════════════════════════════════════════════════════
+
+        PACKED BINARY (UPX example):
+        ─────────────────────────────────────────────────────────────────────────────
+        AddressOfEntryPoint = 0x0001B350 ← Points to UPX decompression stub!
+
+        0x14001B350: push rbp
+        0x14001B351: push rbx
+        0x14001B352: sub rsp, 0x98
+        0x14001B359: lea rdi, [0x140001000] ; Destination for unpacked code
+        0x14001B360: ... ; Decompression loop
+        0x14001B4A0: jmp 0x140001420 ; ← JUMP TO REAL OEP!
+        ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        │
+        └─ Set breakpoint HERE to catch the moment
+        before real code executes. Dump memory
+        to get the unpacked binary.
+    </div>
+
+    <h4>Layer 4: The Section Table (The Map)</h4>
+
+    <p>
+        After the Optional Header comes the <strong>Section Table</strong>—an array of
+        structures that describe each section in the binary. Sections divide the executable
+        into regions with different purposes and permissions.
+    </p>
+
+    <div class="code-block">
+        SECTION HEADER STRUCTURE (40 bytes each):
+        ═════════════════════════════════════════════════════════════════════════════
+
+        typedef struct _IMAGE_SECTION_HEADER {
+        BYTE Name[8]; // ".text\0\0\0" - section name
+        DWORD VirtualSize; // Size in memory
+        DWORD VirtualAddress; // RVA where section is loaded
+        DWORD SizeOfRawData; // Size on disk
+        DWORD PointerToRawData; // File offset to section data
+        DWORD PointerToRelocations; // Usually 0
+        DWORD PointerToLinenumbers; // Usually 0
+        WORD NumberOfRelocations; // Usually 0
+        WORD NumberOfLinenumbers; // Usually 0
+        DWORD Characteristics; // PERMISSIONS (critical!)
+        } IMAGE_SECTION_HEADER;
+
+        ═════════════════════════════════════════════════════════════════════════════
+
+        RAW HEX DUMP OF SECTION HEADERS:
+        ─────────────────────────────────────────────────────────────────────────────
+
+        OFFSET HEX DUMP ASCII
+        ────── ──────────────────────────────────────────── ──────────────────
+        0x01F8 2E 74 65 78 74 00 00 00 8C 1A 00 00 00 10 00 00 .text...........
+        ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ ▲▲▲▲▲▲▲▲▲▲▲ ▲▲▲▲▲▲▲▲▲▲▲
+        │ │ │
+        │ │ └─ VirtualAddress: 0x00001000
+        │ │ Loaded at ImageBase + 0x1000
+        │ │
+        │ └─ VirtualSize: 0x00001A8C (6796 bytes)
+        │
+        └─ Name: ".text" (null-padded to 8 bytes)
+
+        0x0208 00 1C 00 00 00 04 00 00 00 00 00 00 00 00 00 00 ................
+        ▲▲▲▲▲▲▲▲▲▲▲ ▲▲▲▲▲▲▲▲▲▲▲
+        │ │
+        │ └─ PointerToRawData: 0x00000400
+        │ Section data starts at file offset 0x400
+        │
+        └─ SizeOfRawData: 0x00001C00 (7168 bytes)
+        Padded to FileAlignment (0x200)
+
+        0x0218 00 00 00 00 00 00 00 00 20 00 00 60 ........ ..`
+        ▲▲▲▲▲▲▲▲▲▲▲
+        │
+        └─ Characteristics: 0x60000020
+        0x00000020 = CODE
+        0x20000000 = EXECUTE
+        0x40000000 = READ
+
+        Combined: READ + EXECUTE (no WRITE!)
+    </div>
+
+    <h3>PE Sections: The Complete Reference</h3>
+
+    <p>
+        Every PE file is divided into sections. Each section has a specific purpose and
+        memory protections. Understanding these is essential for binary analysis, patching,
+        and exploitation.
+    </p>
+
+    <table style="width:100%; border-collapse:collapse; margin:20px 0;">
+        <tr style="border-bottom:3px solid #ff0000; background-color:#111;">
+            <th style="text-align:left; padding:15px; border:1px solid #333; width:12%;">Section</th>
+            <th style="text-align:left; padding:15px; border:1px solid #333; width:15%;">Permissions</th>
+            <th style="text-align:left; padding:15px; border:1px solid #333; width:18%;">Characteristics</th>
+            <th style="text-align:left; padding:15px; border:1px solid #333;">Purpose & Contents</th>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#ff6b6b;">.text</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> +
+                <span style="color:#ff6b6b;">EXECUTE</span>
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0x60000020</code><br>
+                CODE | EXECUTE | READ
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Executable Code</strong><br>
+                All compiled machine instructions live here. Functions, loops, conditionals—everything
+                the CPU executes. This section is mapped as <em>non-writable</em> to prevent code
+                modification at runtime.<br><br>
+                <span style="color:#ff6b6b;">⚠ Writing here triggers DEP violation (Access Violation/SIGSEGV)</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#ffe66d;">.data</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> +
+                <span style="color:#ffe66d;">WRITE</span>
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0xC0000040</code><br>
+                INITIALIZED_DATA | READ | WRITE
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Initialized Global/Static Variables</strong><br>
+                Variables with initial values: <code>int counter = 100;</code><br>
+                Writable at runtime. Modifications persist for program lifetime.<br><br>
+                <span style="color:#ffe66d;">★ Common target for game hacking (player stats, ammo)</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#4ecdc4;">.rdata</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> only
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0x40000040</code><br>
+                INITIALIZED_DATA | READ
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Read-Only Data</strong><br>
+                String literals: <code>"Hello World"</code><br>
+                Constant arrays, vtables (C++), import/export tables.<br><br>
+                <span style="color:#4ecdc4;">★ Search here for hardcoded strings, API names</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#95e1d3;">.bss</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> +
+                <span style="color:#ffe66d;">WRITE</span>
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0xC0000080</code><br>
+                UNINITIALIZED_DATA | READ | WRITE
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Uninitialized Global/Static Variables</strong><br>
+                Variables without initial values: <code>int buffer[1000];</code><br>
+                Takes no space on disk—loader allocates and zeros at load time.<br><br>
+                <span style="color:#95e1d3;">★ Often merged with .data in modern compilers</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#dfe6e9;">.reloc</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> only<br>
+                (discardable)
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0x42000040</code><br>
+                INITIALIZED_DATA | DISCARDABLE | READ
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Relocation Table</strong><br>
+                List of addresses that need patching if the binary loads at a different
+                ImageBase than preferred (ASLR). Each entry tells the loader which bytes
+                to fix.<br><br>
+                <span style="color:#dfe6e9;">★ Critical for ASLR bypass analysis</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#a29bfe;">.rsrc</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> only
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0x40000040</code><br>
+                INITIALIZED_DATA | READ
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Resources</strong><br>
+                Icons, bitmaps, dialogs, version info, embedded files.<br>
+                Malware often hides payloads here as fake resources.<br><br>
+                <span style="color:#a29bfe;">★ Check for embedded executables, scripts</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#fd79a8;">.idata</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> +
+                <span style="color:#ffe66d;">WRITE</span>
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0xC0000040</code><br>
+                INITIALIZED_DATA | READ | WRITE
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Import Directory</strong><br>
+                Lists DLLs and functions this binary needs. The loader fills in actual
+                addresses at runtime (Import Address Table - IAT).<br><br>
+                <span style="color:#fd79a8;">★ IAT hooking target for API monitoring</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:15px; border:1px solid #333;"><strong style="color:#fab1a0;">.edata</strong></td>
+            <td style="padding:15px; border:1px solid #333;">
+                <span style="color:#4ecdc4;">READ</span> only
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <code>0x40000040</code><br>
+                INITIALIZED_DATA | READ
+            </td>
+            <td style="padding:15px; border:1px solid #333;">
+                <strong>Export Directory</strong><br>
+                Functions this binary exposes to others (mainly DLLs).<br>
+                Maps function names to RVAs for GetProcAddress().<br><br>
+                <span style="color:#fab1a0;">★ Target for export table hooking</span>
+            </td>
+        </tr>
+    </table>
+
+    <div class="warn-banner">
+        <strong>DEP (Data Execution Prevention) — Why You Can't Write to .text</strong><br><br>
+
+        Modern CPUs have a hardware feature called NX bit (No-Execute) or XD bit (Execute Disable).
+        When a memory page is marked non-executable, the CPU will fault if you try to execute
+        instructions from it. Similarly, executable pages are marked non-writable.<br><br>
+
+        <strong>Trying to write to .text section:</strong><br>
+        <code>*((char*)0x140001000) = 0x90;  // Write NOP to code section</code><br><br>
+
+        <strong>Result:</strong> Access Violation (0xC0000005) — STATUS_ACCESS_VIOLATION<br>
+        The program crashes immediately. The OS terminates it before any damage is done.<br><br>
+
+        <strong>Bypassing DEP:</strong> You must use VirtualProtect() or mprotect() to change
+        page permissions before writing. This is why DEP bypass is a key exploitation technique.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE ELF FILE FORMAT (LINUX)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h3>The ELF File Format (Linux)</h3>
+
+    <p>
+        ELF (Executable and Linkable Format) is the standard binary format on Linux, BSD,
+        and most Unix-like systems. While structurally different from PE, the concepts are
+        similar: headers describe the binary, sections contain code and data, and permissions
+        control memory access.
+    </p>
+
+    <div class="code-block">
+        ELF vs PE — STRUCTURAL COMPARISON
+        ═════════════════════════════════════════════════════════════════════════════
+
+        ┌─────────────────────────┬─────────────────────────┐
+        │ WINDOWS PE │ LINUX ELF │
+        ├─────────────────────────┼─────────────────────────┤
+        │ DOS Header (MZ) │ ELF Header │
+        │ PE Header │ Program Headers │
+        │ Optional Header │ Section Headers │
+        │ Section Table │ │
+        ├─────────────────────────┼─────────────────────────┤
+        │ Magic: "MZ" (0x5A4D) │ Magic: 0x7F "ELF" │
+        │ Entry: AddressOfEntry │ Entry: e_entry │
+        │ ImageBase │ No equivalent (PIE) │
+        │ Sections (.text, etc) │ Sections + Segments │
+        └─────────────────────────┴─────────────────────────┘
+    </div>
+
+    <h4>The ELF Header</h4>
+
+    <div class="code-block">
+        ELF HEADER - First 64 bytes (64-bit ELF)
+        ═════════════════════════════════════════════════════════════════════════════
+
+        OFFSET HEX DUMP ASCII
+        ────── ──────────────────────────────────────────── ──────────────────
+        0x0000 7F 45 4C 46 02 01 01 00 00 00 00 00 00 00 00 00 .ELF............
+        ▲▲▲▲▲▲▲▲▲▲▲ ▲▲ ▲▲ ▲▲
+        │ │ │ │
+        │ │ │ └─ EI_OSABI (0x00 = UNIX System V)
+        │ │ └─ EI_DATA (0x01 = Little Endian)
+        │ └─ EI_CLASS (0x02 = 64-bit)
+        │
+        └─ e_ident: Magic number 0x7F 'E' 'L' 'F'
+
+        0x0010 03 00 3E 00 01 00 00 00 40 10 00 00 00 00 00 00 ..>.....@.......
+        ▲▲▲▲▲ ▲▲▲▲▲ ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        │ │ │
+        │ │ └─ e_entry: 0x0000000000001040
+        │ │ ENTRY POINT (like AddressOfEntryPoint)
+        │ │
+        │ └─ e_machine: 0x003E (62 = AMD x86-64)
+        │
+        └─ e_type: 0x0003
+        0x01 = Relocatable (.o)
+        0x02 = Executable
+        0x03 = Shared Object (.so / PIE executable)
+
+        0x0020 40 00 00 00 00 00 00 00 70 2A 00 00 00 00 00 00 @.......p*......
+        ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        │ │
+        │ └─ e_shoff: Section header table offset
+        │
+        └─ e_phoff: 0x40 (Program header table at offset 64)
+
+        ═════════════════════════════════════════════════════════════════════════════
+    </div>
+
+    <h4>Program Headers and PT_LOAD Segments</h4>
+
+    <p>
+        ELF uses <strong>Program Headers</strong> to describe segments—contiguous regions of
+        memory that the loader maps. The most important segment type is <code>PT_LOAD</code>,
+        which tells the kernel exactly what to load and where.
+    </p>
+
+    <div class="code-block">
+        PROGRAM HEADERS (readelf -l output):
+        ═════════════════════════════════════════════════════════════════════════════
+
+        Type Offset VirtAddr FileSiz MemSiz Flg Align
+        ───────────── ────── ──────────────── ─────── ─────── ─── ─────
+        PHDR 0x000040 0x0000000000000040 0x0002d8 0x0002d8 R 0x8
+        INTERP 0x000318 0x0000000000000318 0x00001c 0x00001c R 0x1
+
+        PT_LOAD 0x000000 0x0000000000000000 0x000628 0x000628 R 0x1000
+        │ ▲▲▲▲▲▲▲▲ ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ ▲▲▲▲▲▲▲▲ ▲▲▲▲▲▲▲▲ ▲
+        │ │ │ │ │ │
+        │ │ │ │ │ └─ R = Read only
+        │ │ │ │ └─ Size in memory
+        │ │ │ └─ Size on disk
+        │ │ └─ Load at this virtual address
+        │ └─ File offset
+        └─ First loadable segment (usually read-only data, ELF headers)
+
+        PT_LOAD 0x001000 0x0000000000001000 0x000145 0x000145 R E 0x1000
+        │ ▲▲▲
+        │ │
+        └─ Second PT_LOAD: CODE segment (Read + Execute) │
+        This is like the .text section in PE. │
+        └─ R E = Read + Execute
+
+        PT_LOAD 0x002000 0x0000000000002000 0x0000dc 0x0000dc R 0x1000
+        └─ Third PT_LOAD: Read-only data (.rodata, constants)
+
+        PT_LOAD 0x002de8 0x0000000000003de8 0x000260 0x000268 RW 0x1000
+        │ ▲▲▲
+        │ │
+        └─ Fourth PT_LOAD: DATA segment (Read + Write) │
+        .data, .bss, global variables │
+        └─ RW = Read + Write
+
+        ═════════════════════════════════════════════════════════════════════════════
+
+        KEY DIFFERENCE FROM PE:
+        ─────────────────────────────────────────────────────────────────────────────
+        PE uses SECTIONS for both disk layout and memory layout.
+        ELF uses SECTIONS for disk layout, SEGMENTS (PT_LOAD) for memory layout.
+
+        The loader only reads PT_LOAD segments. Sections are optional metadata used
+        by linkers and debuggers. A stripped binary may have no section headers at
+        all, but must have program headers to execute.
+    </div>
+
+    <div class="real-talk">
+        <strong>ELF Section Stripping:</strong> Unlike PE, ELF section headers are truly
+        optional at runtime. You can strip them entirely with <code>strip -s binary</code>.
+        The binary still runs because the kernel only needs program headers. This is why
+        statically analyzing stripped ELF binaries is harder—you lose section names and
+        boundaries. Tools like <code>readelf -l</code> (program headers) still work, but
+        <code>readelf -S</code> (section headers) shows nothing.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART II: STATIC ANALYSIS (GHIDRA/IDA)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h2>Part II: Static Analysis (Ghidra/IDA)</h2>
+
+    <p>
+        With the binary anatomy understood, we now load the executable into a disassembler.
+        Tools like <strong>Ghidra</strong> (free, NSA-developed) and <strong>IDA Pro</strong>
+        (industry standard, expensive) attempt to reverse the compilation process—turning machine
+        code back into something human-readable. But there's a fundamental problem you must
+        understand before trusting any output.
+    </p>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE DECOMPILER ILLUSION
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h3>The Decompiler Illusion</h3>
+
+    <p>
+        When you open a binary in Ghidra and see "pseudo-C" code, you might think you're looking
+        at the original source. <strong>You are not.</strong> The decompiler is <em>guessing</em>.
+        It analyzes the assembly, recognizes patterns, and reconstructs what the C code
+        <em>might</em> have looked like. But information is <strong>permanently lost</strong>
+        during compilation:
+    </p>
+
+    <ul style="margin: 20px 0; padding-left: 30px; line-height: 2;">
+        <li><strong>Variable names</strong> — Gone. The decompiler invents names like <code>local_28</code>,
+            <code>param_1</code>
+        </li>
+        <li><strong>Comments</strong> — Gone forever. No recovery possible.</li>
+        <li><strong>Type information</strong> — Mostly gone. Is this an <code>int</code> or a <code>char*</code>? Often
+            unclear.</li>
+        <li><strong>High-level constructs</strong> — Simplified. Your elegant class hierarchy? Flat structs and function
+            pointers.</li>
+        <li><strong>Optimizations</strong> — The compiler rewrites your code. Loops get unrolled, functions get inlined,
+            code gets reordered.</li>
+    </ul>
+
+    <div class="warn-banner">
+        <strong>CRITICAL UNDERSTANDING:</strong> The decompiler output is a <em>hypothesis</em>, not fact.
+        It frequently makes mistakes. Always verify against the actual assembly when behavior seems wrong.
+        The assembly never lies—it's exactly what the CPU will execute.
+    </div>
+
+    <h4>Pointer Misinterpretation Example</h4>
+
+    <p>
+        Here's a real example of how decompilers get confused by pointers. The same assembly
+        can be interpreted multiple ways depending on context the decompiler cannot see:
+    </p>
+
+    <div class="code-block">
+        ORIGINAL C CODE (what the programmer wrote):
+        ═════════════════════════════════════════════════════════════════════════════
+
+        // Simple structure for a player
+        typedef struct {
+        int health; // offset 0x00
+        int armor; // offset 0x04
+        int ammo; // offset 0x08
+        char name[32]; // offset 0x0C
+        } Player;
+
+        void damage_player(Player *p, int amount) {
+        p->health -= amount; // Access struct member
+        if (p->health <= 0) { printf("Player %s died!\n", p->name);
+            }
+            }
+    </div>
+
+    <div class="code-block">
+        COMPILED ASSEMBLY (x64):
+        ═════════════════════════════════════════════════════════════════════════════
+
+        damage_player:
+        mov eax, DWORD PTR [rdi] ; Load p->health (offset 0)
+        sub eax, esi ; Subtract amount
+        mov DWORD PTR [rdi], eax ; Store back
+        test eax, eax ; Check if <= 0 jg .return ; If> 0, skip death message
+            lea rsi, [rdi+0xC] ; Load address of p->name
+            lea rdi, [rip+.LC0] ; "Player %s died!\n"
+            xor eax, eax
+            jmp printf
+            .return:
+            ret
+    </div>
+
+    <div class="code-block">
+        GHIDRA DECOMPILER OUTPUT (what Ghidra might guess):
+        ═════════════════════════════════════════════════════════════════════════════
+
+        void damage_player(int *param_1, int param_2) {
+        *param_1 = *param_1 - param_2;
+        if (*param_1 <= 0) { printf("Player %s died!\n", (char *)(param_1 + 3)); } ▲▲▲▲▲▲▲▲▲▲▲▲▲▲ return; │ } │ └─
+            WRONG! Should be (param_1 + 0xC), but decompiler thinks param_1 is int*, so +3 (×4 bytes=0xC) seems right.
+            Actually it's a Player*, and offset 0xC is where 'name' lives.
+            ───────────────────────────────────────────────────────────────────────────── PROBLEMS WITH THIS OUTPUT:
+            ───────────────────────────────────────────────────────────────────────────── 1. param_1 is typed as "int *"
+            — Ghidra doesn't know it's "Player *" 2. The name access looks like "(param_1 + 3)" — confusing pointer
+            arithmetic instead of clear "p->name" member access 3. No indication this is a structure — looks like
+            arbitrary memory access 4. If you copy this decompiler output and compile it, the behavior MIGHT be the
+            same, but you've lost all semantic meaning </div>
+
+            <div class="real-talk">
+                <strong>The lesson:</strong> When Ghidra shows <code>*(param_1 + N)</code>, your first
+                thought should be "this is probably a struct member access." Define the structure
+                in Ghidra's Data Type Manager, retype the parameter, and suddenly the decompiler
+                output becomes readable. Getting good at reversing means spending time fixing types,
+                not just reading what the decompiler first spits out.
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════════════
+         CONTROL FLOW GRAPHS
+    ════════════════════════════════════════════════════════════════════════ -->
+
+            <h3>Control Flow Graphs (CFG)</h3>
+
+            <p>
+                Every disassembler can display code as a <strong>Control Flow Graph</strong>—a visual
+                representation of how execution moves through a function. Understanding how to read
+                CFGs is essential for analyzing complex logic, finding loops, and understanding
+                program flow at a glance.
+            </p>
+
+            <h4>Basic Blocks</h4>
+
+            <p>
+                A <strong>Basic Block</strong> is a sequence of instructions with one entry point and
+                one exit point. No jumps into the middle, no jumps out from the middle. Execution
+                enters at the top and leaves at the bottom (via a jump, call, or return).
+            </p>
+
+            <div class="code-block">
+                BASIC BLOCK ANATOMY:
+                ═════════════════════════════════════════════════════════════════════════════
+
+                ┌─────────────────────────────────────────────────────────────────────────┐
+                │ BASIC BLOCK (addr: 0x401000) │
+                │─────────────────────────────────────────────────────────────────────────│
+                │ 0x401000: push rbp ; Entry point (can only enter here) │
+                │ 0x401001: mov rbp, rsp │
+                │ 0x401004: sub rsp, 0x20 │
+                │ 0x401008: mov eax, [rdi] │
+                │ 0x40100A: cmp eax, 0 │
+                │ 0x40100D: jle 0x401030 ; Exit point (only way out) │
+                └─────────────────────────────────────────────────────────────────────────┘
+                │
+                ├─── If condition is TRUE (jle taken)
+                │
+                ▼
+                ┌─────────────────────────────────────────────────────────────────────────┐
+                │ BASIC BLOCK (addr: 0x401030) │
+                │─────────────────────────────────────────────────────────────────────────│
+                │ 0x401030: mov edi, 1 │
+                │ 0x401035: call exit │
+                └─────────────────────────────────────────────────────────────────────────┘
+
+                ─────────────────────────────────────────────────────────────────────────────
+
+                RULES FOR BASIC BLOCKS:
+
+                ✓ Starts after a label or jump target
+                ✓ Ends with a jump, call, or return
+                ✓ No branches in the middle
+                ✓ Sequential execution within the block
+            </div>
+
+            <h4>Reading the Graph: Finding Loops</h4>
+
+            <p>
+                In a CFG, loops appear as <strong>back edges</strong>—arrows that point backward to
+                a previous block. The block where the back edge points is the <strong>loop header</strong>.
+                Learning to spot these patterns lets you understand function structure instantly.
+            </p>
+
+            <div class="code-block">
+                CFG LOOP PATTERNS:
+                ═════════════════════════════════════════════════════════════════════════════
+
+                WHILE LOOP: FOR LOOP:
+
+                ┌──────────┐ ┌──────────┐
+                │ ENTRY │ │ INIT │
+                │ i = 0 │ │ i = 0 │
+                └────┬─────┘ └────┬─────┘
+                │ │
+                ▼ │
+                ┌───▶┌──────────┐ ▼
+                │ │CONDITION │◀─────────────────┐ ┌──▶┌──────────┐
+                │ │cmp i, 10 │ │ │ │CONDITION │
+                │ │jge exit │─── FALSE ───────►│ │ │cmp i, 10 │
+                │ └────┬─────┘ │ │ │jge exit │─── FALSE ───┐
+                │ │ │ │ └────┬─────┘ │
+                │ │ TRUE │ │ │ │
+                │ ▼ │ │ │ TRUE │
+                │ ┌──────────┐ │ │ ▼ │
+                │ │ BODY │ │ │ ┌──────────┐ │
+                │ │ i++ │ │ │ │ BODY │ │
+                │ │ ... │ │ │ │ ... │ │
+                │ └────┬─────┘ │ │ └────┬─────┘ │
+                │ │ │ │ │ │
+                └─────────┘ ◀── BACK EDGE │ │ ▼ │
+                (this is the loop!) │ │ ┌──────────┐ │
+                │ │ │INCREMENT │ │
+                │ │ │ i++ │ │
+                │ │ └────┬─────┘ │
+                │ │ │ │
+                │ └────────┘ ◀── BACK EDGE │
+                │ │
+                ▼ │
+                ┌──────────┐ │
+                │ EXIT │◀────────────────────────┘
+                └──────────┘
+
+                ─────────────────────────────────────────────────────────────────────────────
+
+                HOW TO SPOT LOOPS IN CFG:
+
+                1. Look for ARROWS POINTING UPWARD (back edges)
+                2. The block they point TO is the loop header
+                3. Blocks between header and back edge are the loop body
+                4. Conditional exit from header = loop termination check
+            </div>
+
+            <div class="code-block">
+                IF/ELSE PATTERN (NO LOOP):
+                ═════════════════════════════════════════════════════════════════════════════
+
+                ┌──────────┐
+                │CONDITION │
+                │ cmp x, 0 │
+                │ je else │
+                └────┬─────┘
+                │
+                ┌──────────┴──────────┐
+                │ TRUE │ FALSE
+                ▼ ▼
+                ┌──────────┐ ┌──────────┐
+                │IF BRANCH │ │ELSE BLOCK│
+                │ ... │ │ ... │
+                └────┬─────┘ └────┬─────┘
+                │ │
+                └───────┬────────────┘
+                │
+                ▼
+                ┌──────────┐
+                │ MERGE │ ◀── Both branches converge here
+                │ ... │ NO back edge = NOT a loop
+                └──────────┘
+
+                KEY DIFFERENCE: All arrows point DOWNWARD. No back edges = no loop.
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════════════
+         PATTERN RECOGNITION
+    ════════════════════════════════════════════════════════════════════════ -->
+
+            <h3>Pattern Recognition (The Eye)</h3>
+
+            <p>
+                With practice, you'll recognize common code patterns instantly in assembly. These
+                patterns are the building blocks of all programs. Once you can spot them, reverse
+                engineering becomes reading, not decoding.
+            </p>
+
+            <h4>Pattern 1: Function Calls</h4>
+
+            <p>
+                Function calls follow a predictable sequence: push arguments (or load into registers),
+                call the address, then check the return value in EAX/RAX.
+            </p>
+
+            <div class="code-block">
+                FUNCTION CALL PATTERN:
+                ═════════════════════════════════════════════════════════════════════════════
+
+                C CODE:
+                ─────────────────────────────────────────────────────────────────────────────
+
+                int result = authenticate(username, password);
+                if (result == 0) {
+                printf("Login failed!\n");
+                }
+
+                ═════════════════════════════════════════════════════════════════════════════
+
+                x64 ASSEMBLY (System V ABI - Linux):
+                ─────────────────────────────────────────────────────────────────────────────
+
+                lea rdi, [rbp-0x40] ; First arg: username (in RDI)
+                lea rsi, [rbp-0x80] ; Second arg: password (in RSI)
+                call authenticate ; ──▶ CALL THE FUNCTION
+
+                test eax, eax ; ◀── Check return value (EAX)
+                jne .success ; If not zero, success
+
+                lea rdi, [rip+.LC0] ; "Login failed!\n"
+                call printf
+                .success:
+                ...
+
+                ─────────────────────────────────────────────────────────────────────────────
+
+                x64 ASSEMBLY (Microsoft ABI - Windows):
+                ─────────────────────────────────────────────────────────────────────────────
+
+                lea rcx, [rbp-0x40] ; First arg: username (in RCX)
+                lea rdx, [rbp-0x80] ; Second arg: password (in RDX)
+                sub rsp, 0x20 ; Shadow space (Windows quirk)
+                call authenticate
+                add rsp, 0x20 ; Clean up shadow space
+
+                test eax, eax ; Check return (same as Linux)
+                jne .success
+                ...
+
+                ─────────────────────────────────────────────────────────────────────────────
+
+                x86 (32-bit, all platforms):
+                ─────────────────────────────────────────────────────────────────────────────
+
+                push DWORD PTR [ebp-0x80] ; Second arg: password (pushed first!)
+                push DWORD PTR [ebp-0x40] ; First arg: username (pushed second!)
+                call authenticate ; ─── PUSH order is REVERSED ───
+                add esp, 8 ; Clean up stack (caller cleanup)
+
+                test eax, eax ; Check return value
+                jne .success
+                ...
+
+                ═════════════════════════════════════════════════════════════════════════════
+
+                PATTERN RECOGNITION SUMMARY:
+
+                x64 Linux: RDI, RSI, RDX, RCX, R8, R9 ──▶ CALL ──▶ TEST EAX
+                x64 Windows: RCX, RDX, R8, R9 + shadow ──▶ CALL ──▶ TEST EAX
+                x86 (32): PUSH args (reverse) ──▶ CALL ──▶ ADD ESP ──▶ TEST EAX
+            </div>
+
+            <h4>Pattern 2: Switch Statements (Jump Tables)</h4>
+
+            <p>
+                When you see code that computes an index and then jumps to <code>[base + index*size]</code>,
+                you're looking at a <strong>jump table</strong>—the compiler's optimization for switch
+                statements with consecutive cases.
+            </p>
+
+            <div class="code-block">
+                SWITCH STATEMENT PATTERN:
+                ═════════════════════════════════════════════════════════════════════════════
+
+                C CODE:
+                ─────────────────────────────────────────────────────────────────────────────
+
+                switch (action) {
+                case 0: handle_create(); break;
+                case 1: handle_read(); break;
+                case 2: handle_update(); break;
+                case 3: handle_delete(); break;
+                default: handle_error();
+                }
+
+                ═════════════════════════════════════════════════════════════════════════════
+
+                x64 ASSEMBLY (JUMP TABLE):
+                ─────────────────────────────────────────────────────────────────────────────
+
+                cmp edi, 3 ; Check if action > 3
+                ja .default ; If above 3, go to default
+
+                ; ─── THE JUMP TABLE MAGIC ───
+                lea rax, [rip+.jump_table] ; Load address of jump table
+                movsxd rcx, DWORD PTR [rax+rdi*4] ; Load offset from table
+                add rcx, rax ; Add base address
+                jmp rcx ; ──▶ JUMP TO COMPUTED ADDRESS
+                ; ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+                ; THIS IS THE SIGNATURE!
+                ; JMP [base + index * 4]
+                ; means SWITCH STATEMENT
+
+                .case_0:
+                call handle_create
+                jmp .end
+                .case_1:
+                call handle_read
+                jmp .end
+                .case_2:
+                call handle_update
+                jmp .end
+                .case_3:
+                call handle_delete
+                jmp .end
+                .default:
+                call handle_error
+                .end:
+                ...
+
+                ; Jump table in .rodata section:
+                .jump_table:
+                .long .case_0 - .jump_table ; Offsets from table base
+                .long .case_1 - .jump_table
+                .long .case_2 - .jump_table
+                .long .case_3 - .jump_table
+
+                ═════════════════════════════════════════════════════════════════════════════
+
+                PATTERN RECOGNITION:
+
+                1. Bounds check: CMP value, MAX_CASE
+                2. Default path: JA default_label
+                3. Table address load: LEA reg, [jump_table]
+                4. Index into table: MOV reg, [base + index*4]
+                5. Computed jump: JMP reg ◀── THE SIGNATURE
+
+                When you see JMP [reg*4 + something], think SWITCH!
+            </div>
+
+            <h4>Pattern 3: For Loops</h4>
+
+            <p>
+                For loops have a distinctive pattern: initialize counter, compare against limit,
+                body code, increment counter, jump back to comparison.
+            </p>
+
+            <div class="code-block">
+                FOR LOOP PATTERN:
+                ═════════════════════════════════════════════════════════════════════════════
+
+                C CODE:
+                ─────────────────────────────────────────────────────────────────────────────
+
+                int sum = 0;
+                for (int i = 0; i < 100; i++) { sum +=array[i]; }
+                    ═════════════════════════════════════════════════════════════════════════════ x64 ASSEMBLY:
+                    ───────────────────────────────────────────────────────────────────────────── ; ─── INITIALIZATION
+                    ─── xor eax, eax ; sum=0 xor ecx, ecx ; i=0 .loop_header: ; ◀── LOOP HEADER (back edge target) ; ───
+                    CONDITION CHECK ─── cmp ecx, 100 ; Compare i with 100 jge .loop_end ; If i>= 100, exit loop
+
+                    ; ─── LOOP BODY ───
+                    add eax, DWORD PTR [rdi+rcx*4] ; sum += array[i]
+
+                    ; ─── INCREMENT ───
+                    inc ecx ; i++
+
+                    ; ─── BACK EDGE ───
+                    jmp .loop_header ; ──▶ JUMP BACK (this creates the loop!)
+
+                    .loop_end:
+                    ; eax contains the sum
+                    ...
+
+                    ═════════════════════════════════════════════════════════════════════════════
+
+                    OPTIMIZED VERSION (compiler might emit):
+                    ─────────────────────────────────────────────────────────────────────────────
+
+                    xor eax, eax ; sum = 0
+                    lea rcx, [rdi+400] ; End pointer: &array[100]
+
+                    .loop:
+                    add eax, DWORD PTR [rdi] ; sum += *ptr
+                    add rdi, 4 ; ptr++ (move to next element)
+                    cmp rdi, rcx ; Compare with end
+                    jb .loop ; If below, continue
+
+                    ; NOTE: The loop counter is gone! Compiler converted index
+                    ; to pointer arithmetic. This is a common optimization.
+
+                    ═════════════════════════════════════════════════════════════════════════════
+
+                    FOR LOOP FINGERPRINT:
+
+                    1. Counter initialization: XOR reg, reg or MOV reg, 0
+                    2. Condition: CMP reg, limit
+                    3. Exit jump: JGE / JG / JNE (jump past loop)
+                    4. Body: (actual work)
+                    5. Increment: INC reg or ADD reg, step
+                    6. Back edge: JMP loop_header
+            </div>
+
+            <div class="real-talk">
+                <strong>Optimized code warning:</strong> Modern compilers aggressively optimize loops.
+                They might unroll iterations, vectorize with SIMD, or eliminate the counter entirely.
+                The patterns above are for unoptimized or lightly optimized code. At -O2 or -O3,
+                loops can look radically different. When in doubt, look for the back edge—any
+                jump that goes to a previous address is creating a loop.
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════════════
+         ANTI-STATIC TECHNIQUES
+    ════════════════════════════════════════════════════════════════════════ -->
+
+            <h3>Anti-Static Techniques</h3>
+
+            <p>
+                Malware authors and software protection systems employ techniques to make static
+                analysis difficult or impossible. Understanding these techniques helps you recognize
+                when you're dealing with protected code—and how to work around defenses.
+            </p>
+
+            <h4>String Encryption (XOR Obfuscation)</h4>
+
+            <p>
+                One of the easiest ways to find malware's purpose is searching for strings—error
+                messages like "Invalid Password", URLs, registry keys, command names. So malware
+                authors <strong>encrypt all strings</strong> and decrypt them only at runtime.
+                If you don't see strings in your disassembler, you can't search for functionality.
+            </p>
+
+            <div class="code-block">
+                STRING ENCRYPTION EXAMPLE:
+                ═════════════════════════════════════════════════════════════════════════════
+
+                UNPROTECTED C CODE:
+                ─────────────────────────────────────────────────────────────────────────────
+
+                // This is trivially discoverable with: strings malware.exe | grep -i password
+                if (strcmp(input, "secretpassword") == 0) {
+                printf("Access Granted!\n");
+                }
+
+                ═════════════════════════════════════════════════════════════════════════════
+
+                PROTECTED VERSION (XOR encryption):
+                ─────────────────────────────────────────────────────────────────────────────
+
+                // Encrypted with XOR key 0x5A
+                // Original: "secretpassword" (14 chars)
+                // Each byte XOR'd with 0x5A
+                unsigned char encrypted[] = {
+                0x29, 0x3F, 0x39, 0x28, 0x3F, 0x2A, 0x2E, 0x3B, // "secretpa"
+                0x29, 0x29, 0x2B, 0x35, 0x28, 0x3E // "ssword"
+                };
+
+                char* decrypt(unsigned char* data, int len, unsigned char key) {
+                char* result = malloc(len + 1);
+                for (int i = 0; i < len; i++) { result[i]=data[i] ^ key; // XOR decryption } result[len]='\0' ; return
+                    result; } // Usage at runtime: char* password=decrypt(encrypted, 14, 0x5A); if (strcmp(input,
+                    password)==0) { printf("Access Granted!\n"); } free(password); // String exists only briefly in
+                    memory! ═════════════════════════════════════════════════════════════════════════════ ASSEMBLY VIEW
+                    OF DECRYPTION: ───────────────────────────────────────────────────────────────────────────── ; XOR
+                    decryption loop (the fingerprint) decrypt: xor ecx, ecx ; i=0 .loop: cmp ecx, esi ; i < len? jge
+                    .done movzx eax, BYTE PTR [rdi+rcx] ; Load encrypted byte xor eax, edx ; XOR with key ◀── THE TELL
+                    mov BYTE PTR [r8+rcx], al ; Store decrypted inc ecx jmp .loop .done: ret
+                    ═════════════════════════════════════════════════════════════════════════════ HOW TO DEFEAT: 1. Find
+                    the decryption routine (look for XOR loops) 2. Set breakpoint AFTER decryption completes 3. Dump the
+                    decrypted string from memory Or: Write a script to brute-force the XOR key (it's often single-byte)
+                    </div>
+
+                    <div class="warn-banner">
+                        <strong>Static analysis nightmare:</strong> If you run <code>strings</code> on the
+                        protected binary, you find NOTHING useful. No "password", no URLs, no registry keys.
+                        The malware's intent is invisible until execution. This is why dynamic analysis
+                        (running the malware in a sandbox) complements static analysis.
+                    </div>
+
+                    <h4>Control Flow Flattening</h4>
+
+                    <p>
+                        Normal code has a natural control flow—functions call functions, loops iterate,
+                        conditions branch. <strong>Control Flow Flattening</strong> destroys this structure
+                        by converting all control flow into a giant switch statement inside a while loop.
+                        The CFG becomes unreadable "spaghetti."
+                    </p>
+
+                    <div class="code-block">
+                        CONTROL FLOW FLATTENING:
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        ORIGINAL C CODE (clear control flow):
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        void process(int x) {
+                        int result = x * 2; // Step 1
+
+                        if (result > 100) { // Step 2
+                        result = result - 50; // Step 3a
+                        } else {
+                        result = result + 10; // Step 3b
+                        }
+
+                        printf("%d\n", result); // Step 4
+                        }
+
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        FLATTENED VERSION (obfuscated):
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        void process_flattened(int x) {
+                        int state = 1; // State machine variable
+                        int result;
+
+                        while (state != 0) { // ◀── INFINITE LOOP (dispatcher)
+                        switch (state) { // ◀── GIANT SWITCH (state machine)
+                        case 1:
+                        result = x * 2;
+                        state = 2; // Transition to state 2
+                        break;
+
+                        case 2:
+                        if (result > 100) {
+                        state = 3; // Go to state 3
+                        } else {
+                        state = 4; // Go to state 4
+                        }
+                        break;
+
+                        case 3:
+                        result = result - 50;
+                        state = 5; // Go to final state
+                        break;
+
+                        case 4:
+                        result = result + 10;
+                        state = 5; // Go to final state
+                        break;
+
+                        case 5:
+                        printf("%d\n", result);
+                        state = 0; // Exit (state = 0 breaks loop)
+                        break;
+                        }
+                        }
+                        }
+
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        CFG COMPARISON:
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        ORIGINAL CFG: FLATTENED CFG:
+
+                        ┌─────┐ ┌─────────┐
+                        │ 1 │ │DISPATCH │◀──────────────────┐
+                        └──┬──┘ └────┬────┘ │
+                        │ │ │
+                        ▼ ▼ │
+                        ┌─────┐ ┌───┬───┬───┬───┬───┐ │
+                        │ 2 │ │ 1 │ 2 │ 3 │ 4 │ 5 │ │
+                        └──┬──┘ └─┬─┴─┬─┴─┬─┴─┬─┴─┬─┘ │
+                        ┌───┴───┐ │ │ │ │ │ │
+                        ▼ ▼ └───┴───┴───┴───┴───────────────┘
+                        ┌─────┐ ┌─────┐ ALL BLOCKS JUMP BACK TO DISPATCHER!
+                        │ 3a │ │ 3b │
+                        └──┬──┘ └──┬──┘ This looks like spaghetti in IDA/Ghidra.
+                        └───┬───┘ You can't follow "normal" control flow.
+                        ▼
+                        ┌─────┐
+                        │ 4 │
+                        └─────┘
+
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        WHY THIS IS EFFECTIVE:
+
+                        1. The CFG looks like a star or web, not linear flow
+                        2. You can't "follow" execution visually
+                        3. Decompiler output has a giant switch/while that's hard to read
+                        4. Every block jumps back to the dispatcher—no direct block-to-block edges
+                        5. State transitions are computed, often with encrypted state values
+                    </div>
+
+                    <div class="code-block">
+                        RECOGNIZING FLATTENED CODE:
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        ASSEMBLY FINGERPRINT:
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        ; Outer loop (dispatcher)
+                        .dispatcher:
+                        mov eax, DWORD PTR [rbp-0x4] ; Load state variable
+                        cmp eax, 5 ; Compare with max state
+                        ja .exit ; Exit if invalid
+
+                        ; Jump table dispatch
+                        lea rcx, [rip+.state_table]
+                        movsxd rax, DWORD PTR [rcx+rax*4]
+                        add rax, rcx
+                        jmp rax ; Jump to state handler
+
+                        .state_1:
+                        ; Block 1 code...
+                        mov DWORD PTR [rbp-0x4], 2 ; Set next state = 2
+                        jmp .dispatcher ; ◀── BACK TO DISPATCHER
+
+                        .state_2:
+                        ; Block 2 code...
+                        mov DWORD PTR [rbp-0x4], 3 ; Set next state
+                        jmp .dispatcher ; ◀── BACK TO DISPATCHER
+
+                        ; ... more states ...
+
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        THE TELLTALE SIGNS:
+
+                        1. Variable that stores "state" (updated by every block)
+                        2. Giant switch/jump table at function start
+                        3. Every block ends with JMP back to the dispatcher
+                        4. CFG looks like a star with dispatcher in center
+                        5. Function much larger than logic would require
+                    </div>
+
+                    <div class="real-talk">
+                        <strong>Defeating control flow flattening:</strong> This is one of the hardest
+                        obfuscation techniques to beat. Options include:
+                        <ul style="margin-top: 10px; line-height: 1.8;">
+                            <li>Use tools like <code>D-810</code> (IDA plugin) or <code>SATURN</code> that can
+                                symbolically execute and reconstruct original CFG</li>
+                            <li>Trace execution dynamically and record which states lead to which</li>
+                            <li>Manual analysis: understand the state machine and draw the real CFG</li>
+                            <li>Identify and kill the obfuscator before it runs (if packer-based)</li>
+                        </ul>
+                        This technique is used by commercial protectors like <strong>OLLVM</strong>,
+                        <strong>Themida</strong>, and <strong>VMProtect</strong>.
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART III: DYNAMIC ANALYSIS (THE SURGERY)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                    <h2>Part III: Dynamic Analysis (The Surgery)</h2>
+
+                    <p>
+                        Static analysis tells you what a program <em>could</em> do. Dynamic analysis tells
+                        you what it <em>actually does</em>. You run the binary under controlled conditions,
+                        watch it execute instruction by instruction, inspect memory and registers in real-time,
+                        and observe its behavior. This is surgery—cutting into a living process.
+                    </p>
+
+                    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE CONCEPT: ATTACHING A DEBUGGER
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                    <h3>The Concept: Attaching a Debugger</h3>
+
+                    <p>
+                        A <strong>debugger</strong> is a program that controls the execution of another program.
+                        It can start a process, attach to a running process, pause execution at any point,
+                        inspect and modify memory, and single-step through instructions. On Windows, debuggers
+                        use the <code>DebugActiveProcess()</code> API. On Linux, they use <code>ptrace()</code>.
+                    </p>
+
+                    <div class="code-block">
+                        HOW DEBUGGER ATTACHMENT WORKS:
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        WINDOWS (x64dbg, WinDbg):
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        1. Debugger calls: DebugActiveProcess(targetPID)
+                        2. Windows kernel modifies target's PEB (sets BeingDebugged = 1)
+                        3. Kernel suspends all target threads
+                        4. Target enters "debug state" — all exceptions routed to debugger
+                        5. Debugger receives DEBUG_EVENT notifications
+
+                        // The debugger's main loop:
+                        DEBUG_EVENT event;
+                        while (WaitForDebugEvent(&event, INFINITE)) {
+                        switch (event.dwDebugEventCode) {
+                        case EXCEPTION_DEBUG_EVENT:
+                        // Breakpoint hit, access violation, etc.
+                        handle_exception(&event);
+                        break;
+                        case CREATE_PROCESS_DEBUG_EVENT:
+                        // Process just started
+                        break;
+                        case EXIT_PROCESS_DEBUG_EVENT:
+                        // Process terminating
+                        break;
+                        }
+                        ContinueDebugEvent(event.dwProcessId, event.dwThreadId, DBG_CONTINUE);
+                        }
+
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        LINUX (gdb, lldb):
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        1. Debugger calls: ptrace(PTRACE_ATTACH, targetPID, NULL, NULL)
+                        2. Kernel sends SIGSTOP to target process
+                        3. Target stops, becomes "traced" — all signals routed to debugger
+                        4. Debugger uses ptrace() to read/write memory, registers, step execution
+
+                        // Attach and wait for stop
+                        ptrace(PTRACE_ATTACH, pid, NULL, NULL);
+                        waitpid(pid, &status, 0); // Wait for SIGSTOP
+
+                        // Read register values
+                        struct user_regs_struct regs;
+                        ptrace(PTRACE_GETREGS, pid, NULL, &regs);
+                        printf("RIP = %llx\n", regs.rip); // Instruction pointer
+
+                        // Single-step one instruction
+                        ptrace(PTRACE_SINGLESTEP, pid, NULL, NULL);
+                        waitpid(pid, &status, 0);
+                    </div>
+
+                    <div class="real-talk">
+                        <strong>The power of attachment:</strong> Once attached, the debugger has god-mode
+                        access to the process. It can read all memory (including decrypted secrets), modify
+                        any register, skip instructions, or inject code. This is why anti-debugging exists—if
+                        you can't prevent attachment, you can't protect secrets.
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════════════════════════════════
+         BREAKPOINTS (THE FREEZE GUN)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                    <h3>Breakpoints (The Freeze Gun)</h3>
+
+                    <p>
+                        A <strong>breakpoint</strong> stops execution at a specific instruction. When the CPU
+                        reaches that address, control transfers to the debugger. You can then inspect state,
+                        modify values, or continue execution. There are two types, and understanding the
+                        difference is critical.
+                    </p>
+
+                    <h4>Software Breakpoints (INT 3 / 0xCC)</h4>
+
+                    <p>
+                        The most common breakpoint type. The debugger <strong>overwrites the first byte</strong>
+                        of the target instruction with <code>0xCC</code>, the opcode for <code>INT 3</code>
+                        (software interrupt). When the CPU executes <code>0xCC</code>, it raises an exception
+                        that the debugger catches.
+                    </p>
+
+                    <div class="code-block">
+                        SOFTWARE BREAKPOINT MECHANISM:
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        ORIGINAL CODE AT 0x401000:
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        0x401000: 55 push rbp ; Original instruction
+                        0x401001: 48 89 E5 mov rbp, rsp
+                        0x401004: 48 83 EC 20 sub rsp, 0x20
+                        ▲▲
+                        │
+                        └─ First byte is 0x55 (PUSH RBP opcode)
+
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        AFTER SETTING BREAKPOINT AT 0x401000:
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        0x401000: CC int 3 ; ◀── BYTE REPLACED WITH 0xCC!
+                        0x401001: 48 89 E5 mov rbp, rsp ; (rest unchanged)
+                        0x401004: 48 83 EC 20 sub rsp, 0x20
+                        ▲▲
+                        │
+                        └─ Debugger SAVED original byte (0x55)
+                        and WROTE 0xCC in its place
+
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        WHEN CPU REACHES 0x401000:
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        1. CPU fetches instruction at 0x401000
+                        2. CPU executes 0xCC (INT 3)
+                        3. CPU raises EXCEPTION_BREAKPOINT (code 0x80000003)
+                        4. OS routes exception to debugger
+                        5. Debugger pauses, shows user the state
+                        6. When continuing:
+                        - Debugger writes back original byte (0x55)
+                        - Sets CPU flag to single-step ONE instruction
+                        - Steps past the restored instruction
+                        - Writes 0xCC back again
+                        - Continues normally
+
+                        ═════════════════════════════════════════════════════════════════════════════
+
+                        THE PROBLEM: CODE MODIFICATION
+                        ─────────────────────────────────────────────────────────────────────────────
+
+                        The debugger MODIFIES the executable code in memory! ◀── THIS IS DETECTABLE
+
+                        Anti-cheat systems (EasyAntiCheat, BattlEye, Vanguard) perform INTEGRITY CHECKS:
+
+                        1. They compute hash/checksum of .text section at startup
+                        2. Periodically recalculate and compare
+                        3. If ANY byte changed (including 0xCC), they detect tampering
+                        4. Game terminates, ban hammer falls
+
+                        Code to detect software breakpoints:
+
+                        // Compute checksum of code section
+                        DWORD checksum = 0;
+                        for (BYTE* p = codeStart; p < codeEnd; p++) { checksum=(checksum << 5) + checksum + *p; //
+                            Simple hash } if (checksum !=expectedChecksum) { // CODE MODIFIED! Debugger or hack
+                            detected! ExitProcess(0xDEAD); } </div>
+
+                            <div class="warn-banner">
+                                <strong>Why anti-cheats hate 0xCC:</strong> Any byte in the code section that reads
+                                <code>0xCC</code> is suspicious. Even if not at a function start, it could be a
+                                breakpoint. Anti-cheats scan for 0xCC bytes that weren't in the original binary.
+                                Some even check if specific sensitive functions (like damage calculation) have been
+                                modified.
+                            </div>
+
+                            <h4>Hardware Breakpoints (DR Registers)</h4>
+
+                            <p>
+                                x86/x64 CPUs have special <strong>Debug Registers</strong> (DR0-DR7) that enable
+                                breakpoints <strong>without modifying code</strong>. The CPU monitors specified
+                                addresses and triggers a debug exception when accessed. This is stealthier because
+                                the code itself remains unchanged.
+                            </p>
+
+                            <div class="code-block">
+                                HARDWARE BREAKPOINT MECHANISM:
+                                ═════════════════════════════════════════════════════════════════════════════
+
+                                DEBUG REGISTERS (x64):
+                                ─────────────────────────────────────────────────────────────────────────────
+
+                                DR0 = 0x0000000140001420 ; Breakpoint address #1
+                                DR1 = 0x0000000140005000 ; Breakpoint address #2
+                                DR2 = 0x0000000000000000 ; Not used
+                                DR3 = 0x0000000000000000 ; Not used
+                                DR6 = Status register ; Which breakpoint triggered
+                                DR7 = Control register ; Enable/disable, conditions
+
+                                ─────────────────────────────────────────────────────────────────────────────
+
+                                DR7 CONTROL REGISTER FORMAT (simplified):
+                                ─────────────────────────────────────────────────────────────────────────────
+
+                                Bits 0-1: L0, G0 = Enable DR0 (Local, Global)
+                                Bits 2-3: L1, G1 = Enable DR1
+                                Bits 4-5: L2, G2 = Enable DR2
+                                Bits 6-7: L3, G3 = Enable DR3
+
+                                Bits 16-17: Condition for DR0:
+                                00 = Execution (instruction fetch)
+                                01 = Data Write only
+                                10 = I/O (rare)
+                                11 = Data Read/Write
+
+                                Bits 18-19: Length for DR0:
+                                00 = 1 byte
+                                01 = 2 bytes
+                                10 = 8 bytes (x64 only)
+                                11 = 4 bytes
+
+                                ═════════════════════════════════════════════════════════════════════════════
+
+                                SETTING A HARDWARE BREAKPOINT (Windows):
+                                ─────────────────────────────────────────────────────────────────────────────
+
+                                // Set execution breakpoint at 0x140001420 using DR0
+                                CONTEXT ctx;
+                                ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+                                GetThreadContext(hThread, &ctx);
+
+                                ctx.Dr0 = 0x140001420; // Address to break on
+                                ctx.Dr7 |= (1 << 0); // Enable DR0 locally (L0=1) ctx.Dr7 &=~(3 << 16); // Condition=00
+                                    (execution) ctx.Dr7 &=~(3 << 18); // Length=00 (1 byte, for exec)
+                                    SetThreadContext(hThread, &ctx); // Now when CPU executes instruction at
+                                    0x140001420: // - CPU generates EXCEPTION_SINGLE_STEP (0x80000004) // - Debugger
+                                    catches it // - NO CODE WAS MODIFIED!
+                                    ═════════════════════════════════════════════════════════════════════════════
+                                    HARDWARE BREAKPOINT ADVANTAGES:
+                                    ───────────────────────────────────────────────────────────────────────────── ✓ No
+                                    code modification — integrity checks pass ✓ Works on read-only memory ✓ Can break on
+                                    data ACCESS, not just execution ✓ Can watch specific memory addresses for
+                                    reads/writes HARDWARE BREAKPOINT LIMITATIONS:
+                                    ───────────────────────────────────────────────────────────────────────────── ✗ Only
+                                    4 breakpoints available (DR0-DR3) ✗ Anti-debug can read DR registers and detect them
+                                    ✗ Some anti-cheats clear DR registers periodically ✗ Requires thread context access
+                                    (may be protected) </div>
+
+                                    <div class="code-block">
+                                        DETECTING HARDWARE BREAKPOINTS:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        // Anti-debug code that checks for hardware breakpoints
+
+                                        CONTEXT ctx;
+                                        ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+                                        GetThreadContext(GetCurrentThread(), &ctx);
+
+                                        if (ctx.Dr0 != 0 || ctx.Dr1 != 0 || ctx.Dr2 != 0 || ctx.Dr3 != 0) {
+                                        // Hardware breakpoints detected!
+                                        ExitProcess(0);
+                                        }
+
+                                        // Or check if DR7 has any breakpoints enabled
+                                        if (ctx.Dr7 & 0xFF) { // Check L0-L3, G0-G3 bits
+                                        // Debugger is watching us!
+                                        ExitProcess(0);
+                                        }
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        ASSEMBLY VERSION:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        ; Read debug registers directly (privileged - only works in kernel mode)
+                                        ; In user mode, must use GetThreadContext
+
+                                        check_dr:
+                                        sub rsp, 0x4D0 ; CONTEXT structure size
+                                        mov rcx, rsp
+                                        mov DWORD PTR [rcx], 0x10 ; CONTEXT_DEBUG_REGISTERS
+                                        call RtlCaptureContext ; Or GetThreadContext
+
+                                        mov rax, [rsp+0x350] ; Dr0 offset in CONTEXT
+                                        test rax, rax
+                                        jnz debugger_detected
+                                        mov rax, [rsp+0x358] ; Dr1
+                                        test rax, rax
+                                        jnz debugger_detected
+                                        ; ... check Dr2, Dr3 ...
+
+                                        add rsp, 0x4D0
+                                        ret
+
+                                        debugger_detected:
+                                        xor ecx, ecx
+                                        call ExitProcess
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE WORKFLOW: STEP INTO VS STEP OVER
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>The Workflow: Step Into vs. Step Over</h3>
+
+                                    <p>
+                                        When paused at a breakpoint, you have two primary ways to advance execution:
+                                        <strong>Step Into</strong> and <strong>Step Over</strong>. Understanding the
+                                        difference
+                                        is fundamental to efficient debugging.
+                                    </p>
+
+                                    <div class="code-block">
+                                        STEP INTO vs STEP OVER:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        PAUSED AT THIS CODE:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        ──▶ 0x401000: call 0x402000 ; Call to some_function()
+                                        0x401005: mov [rbp-8], eax ; Store return value
+                                        0x401008: test eax, eax
+                                        0x40100A: jz 0x401020
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        STEP INTO (F7 in most debuggers):
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        - Follows the CALL instruction
+                                        - You END UP INSIDE the called function
+                                        - Next pause is at 0x402000 (first instruction of some_function)
+
+                                        0x401000: call 0x402000
+                                        │
+                                        └───────────────────────┐
+                                        ▼
+                                        some_function:
+                                        ──▶ 0x402000: push rbp ; ◀── You land here
+                                        0x402001: mov rbp, rsp
+                                        0x402004: ...
+
+                                        USE WHEN: You want to analyze what the called function does.
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        STEP OVER (F8 in most debuggers):
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        - Executes the CALL but doesn't follow into it
+                                        - The entire called function runs to completion
+                                        - You pause at the NEXT instruction after the CALL
+
+                                        0x401000: call 0x402000 ; Entire function executes
+                                        ──▶ 0x401005: mov [rbp-8], eax ; ◀── You land here
+                                        0x401008: test eax, eax
+
+                                        USE WHEN: You trust the function (or it's a library call like printf)
+                                        and just want to see its return value.
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        HOW STEP OVER WORKS INTERNALLY:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        1. Debugger identifies that current instruction is a CALL
+                                        2. Calculates address of NEXT instruction (0x401005)
+                                        3. Sets TEMPORARY breakpoint at 0x401005
+                                        4. Continues execution
+                                        5. Function runs, returns, hits breakpoint
+                                        6. Debugger removes temporary breakpoint, pauses
+
+                                        This is why Step Over on an infinite loop = hang. The function never returns!
+                                    </div>
+
+                                    <div class="real-talk">
+                                        <strong>Pro tip:</strong> Step Over through library functions (printf, malloc,
+                                        etc.)
+                                        unless you suspect they're hooked or you're analyzing the library itself. Step
+                                        Into
+                                        every function when you're tracing malware behavior—you never know what's hidden
+                                        inside an innocent-looking function name.
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART IV: ANTI-DEBUGGING (THE TRAPS)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h2>Part IV: Anti-Debugging (The Traps)</h2>
+
+                                    <p>
+                                        Software that doesn't want to be analyzed fights back. Malware, anti-cheat
+                                        systems,
+                                        DRM, and copy protection all employ techniques to detect and evade debuggers.
+                                        Understanding
+                                        these techniques is essential—both for bypassing protection when analyzing
+                                        malware, and
+                                        for understanding how your own software might be protected.
+                                    </p>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         ISDEBUGGERPRESENT / PEB CHECK
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>IsDebuggerPresent (The PEB Check)</h3>
+
+                                    <p>
+                                        The simplest anti-debug technique on Windows. Every process has a
+                                        <strong>Process
+                                            Environment Block (PEB)</strong>—a structure in user-mode memory containing
+                                        process
+                                        information. One field, <code>BeingDebugged</code>, is set to 1 when a debugger
+                                        is
+                                        attached. The Windows API <code>IsDebuggerPresent()</code> simply reads this
+                                        byte.
+                                    </p>
+
+                                    <div class="code-block">
+                                        THE PEB STRUCTURE (relevant fields):
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        // Partial PEB structure (64-bit)
+                                        typedef struct _PEB {
+                                        BYTE InheritedAddressSpace; // Offset 0x00
+                                        BYTE ReadImageFileExecOptions; // Offset 0x01
+                                        BYTE BeingDebugged; // Offset 0x02 ◀── THE FLAG!
+                                        BYTE BitField; // Offset 0x03
+                                        PVOID Mutant; // Offset 0x08
+                                        PVOID ImageBaseAddress; // Offset 0x10
+                                        // ... many more fields ...
+                                        DWORD NtGlobalFlag; // Offset 0xBC ◀── Also checked!
+                                        } PEB, *PPEB;
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        ACCESSING THE PEB (via Thread Environment Block):
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        x64: GS:[0x60] points to PEB
+                                        x86: FS:[0x30] points to PEB
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        IsDebuggerPresent() IMPLEMENTATION:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        BOOL WINAPI IsDebuggerPresent(void) {
+                                        // Get pointer to PEB from TEB (Thread Environment Block)
+                                        // TEB is at GS:[0] on x64, FS:[0] on x86
+                                        // PEB pointer is at TEB+0x60 (x64) or TEB+0x30 (x86)
+
+                                        PPEB peb = NtCurrentTeb()->ProcessEnvironmentBlock;
+                                        return peb->BeingDebugged;
+                                        }
+                                    </div>
+
+                                    <div class="code-block">
+                                        ASSEMBLY: IsDebuggerPresent CHECK
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        x64 ASSEMBLY (Windows):
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        ; Method 1: Using the API
+                                        check_debugger_api:
+                                        call IsDebuggerPresent ; Returns 1 if debugged, 0 if not
+                                        test eax, eax
+                                        jnz debugger_found
+                                        ; ... normal execution ...
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        ; Method 2: Direct PEB access (no API call to hook)
+                                        check_debugger_direct:
+                                        mov rax, gs:[0x60] ; RAX = PEB base address
+                                        movzx eax, BYTE PTR [rax+2] ; EAX = PEB.BeingDebugged (offset 0x02)
+                                        test eax, eax
+                                        jnz debugger_found
+                                        ; ... normal execution ...
+
+                                        debugger_found:
+                                        ; Take evasive action
+                                        xor ecx, ecx
+                                        call ExitProcess ; Or crash, or corrupt data, or...
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        x86 ASSEMBLY (Windows):
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        check_debugger_x86:
+                                        mov eax, fs:[0x30] ; EAX = PEB base (different segment!)
+                                        movzx eax, BYTE PTR [eax+2] ; EAX = PEB.BeingDebugged
+                                        test eax, eax
+                                        jnz debugger_found
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        BYPASSING IsDebuggerPresent:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        Method 1: Patch PEB.BeingDebugged to 0
+
+                                        In debugger (x64dbg):
+                                        1. Find PEB address: run "peb" command
+                                        2. Go to PEB+0x02
+                                        3. Change byte from 01 to 00
+
+                                        Method 2: Hook IsDebuggerPresent to always return 0
+
+                                        Method 3: Patch the JNZ to JMP (skip the check entirely)
+
+                                        0x401020: 75 15 jnz debugger_found ; Original
+                                        0x401020: EB 15 jmp debugger_found ; Patched (always jump)
+                                        ▲▲
+                                        │
+                                        └─ Or patch to 90 90 (NOP NOP) to fall through
+                                    </div>
+
+                                    <div class="warn-banner">
+                                        <strong>NtGlobalFlag (offset 0xBC on x64, 0x68 on x86):</strong> When a debugger
+                                        creates a process (not attaches), Windows sets heap debugging flags in
+                                        NtGlobalFlag.
+                                        Values like <code>FLG_HEAP_ENABLE_TAIL_CHECK (0x10)</code>,
+                                        <code>FLG_HEAP_ENABLE_FREE_CHECK (0x20)</code>,
+                                        and <code>FLG_HEAP_VALIDATE_PARAMETERS (0x40)</code> are set. Malware checks if
+                                        <code>NtGlobalFlag & 0x70</code> is non-zero to detect debugger-spawned
+                                        processes.
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         TIMING CHECKS (RDTSC)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>Timing Checks (RDTSC)</h3>
+
+                                    <p>
+                                        When you step through code in a debugger, execution is <em>incredibly
+                                            slow</em>—orders
+                                        of magnitude slower than normal CPU speed. Anti-debug code measures time between
+                                        two
+                                        points. If too much time passes, a human must be single-stepping through the
+                                        code.
+                                    </p>
+
+                                    <div class="code-block">
+                                        RDTSC (Read Time-Stamp Counter):
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        The CPU has a 64-bit counter that increments every clock cycle.
+                                        RDTSC instruction reads it: result in EDX:EAX (high:low 32 bits).
+
+                                        On a 3 GHz CPU: counter increments ~3 billion times per second
+
+                                        Normal code execution: A few hundred cycles between checkpoints
+                                        Debugger single-step: MILLIONS of cycles between steps
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        C CODE IMPLEMENTATION:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        #include <intrin.h> // For __rdtsc()
+
+                                            void timing_check(void) {
+                                            unsigned __int64 start, end, delta;
+
+                                            start = __rdtsc(); // Read timestamp counter
+
+                                            // Some code we're protecting
+                                            // This should execute in ~100-1000 cycles normally
+                                            sensitive_operation();
+
+                                            end = __rdtsc();
+                                            delta = end - start;
+
+                                            // Normal execution: delta < 10,000 cycles // Single-stepping: delta>
+                                                1,000,000 cycles (easily)
+
+                                                if (delta > 100000) { // Threshold (tune as needed)
+                                                // Someone is debugging!
+                                                corrupt_data();
+                                                ExitProcess(0);
+                                                }
+                                                }
+
+                                                ═════════════════════════════════════════════════════════════════════════════
+
+                                                ASSEMBLY IMPLEMENTATION:
+                                                ─────────────────────────────────────────────────────────────────────────────
+
+                                                timing_anti_debug:
+                                                ; ─── FIRST TIMESTAMP ───
+                                                rdtsc ; Read counter into EDX:EAX
+                                                mov r8d, eax ; Save low 32 bits (enough for our check)
+
+                                                ; ─── PROTECTED CODE SECTION ───
+                                                ; This is the code we're checking
+                                                mov rax, [rdi]
+                                                add rax, [rsi]
+                                                xor rax, 0x12345678
+                                                ; ... more code ...
+
+                                                ; ─── SECOND TIMESTAMP ───
+                                                rdtsc ; Read counter again
+                                                sub eax, r8d ; delta = end - start
+
+                                                ; ─── CHECK THRESHOLD ───
+                                                cmp eax, 100000 ; 100,000 cycles threshold
+                                                ja debugger_detected ; If above, debugger!
+
+                                                ; Normal execution continues...
+                                                ret
+
+                                                debugger_detected:
+                                                xor ecx, ecx
+                                                jmp ExitProcess
+
+                                                ═════════════════════════════════════════════════════════════════════════════
+
+                                                ALTERNATIVE: QueryPerformanceCounter (Windows):
+                                                ─────────────────────────────────────────────────────────────────────────────
+
+                                                LARGE_INTEGER start, end, freq;
+                                                QueryPerformanceFrequency(&freq);
+
+                                                QueryPerformanceCounter(&start);
+                                                sensitive_operation();
+                                                QueryPerformanceCounter(&end);
+
+                                                double elapsed_us = (end.QuadPart - start.QuadPart) * 1000000.0 /
+                                                freq.QuadPart;
+
+                                                if (elapsed_us > 1000.0) { // More than 1ms = suspicious
+                                                // Debugger detected
+                                                }
+
+                                                ═════════════════════════════════════════════════════════════════════════════
+
+                                                BYPASSING TIMING CHECKS:
+                                                ─────────────────────────────────────────────────────────────────────────────
+
+                                                Method 1: Patch out the check
+                                                - NOP the CMP and JA instructions
+                                                - Or patch threshold to 0xFFFFFFFF (always pass)
+
+                                                Method 2: Hook RDTSC (hardware virtualization)
+                                                - Use Intel VT-x to trap RDTSC and return fake values
+                                                - Sophisticated but effective
+
+                                                Method 3: Set hardware breakpoint AFTER the check
+                                                - Run to just past the timing check at full speed
+                                                - Then start single-stepping
+
+                                                Method 4: Identify and patch all timing checks
+                                                - Search for RDTSC (0F 31) or QueryPerformanceCounter calls
+                                                - Neutralize each one
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         TLS CALLBACKS
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>TLS Callbacks (The Pre-Strike)</h3>
+
+                                    <p>
+                                        <strong>Thread Local Storage (TLS)</strong> is a mechanism for per-thread data.
+                                        But it has a dark secret: TLS callbacks are functions that execute
+                                        <strong>before
+                                            the entry point</strong>. When a debugger sets a breakpoint at the entry
+                                        point
+                                        (AddressOfEntryPoint), the TLS callbacks have already run—and already detected
+                                        the debugger.
+                                    </p>
+
+                                    <div class="code-block">
+                                        TLS CALLBACK EXECUTION ORDER:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        NORMAL PROGRAM STARTUP:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        1. Kernel32!BaseThreadInitThunk
+                                        │
+                                        ▼
+                                        2. ntdll!LdrInitializeThunk
+                                        │
+                                        ▼
+                                        3. TLS Callbacks (if any) ◀── RUNS BEFORE ENTRY POINT!
+                                        │ TlsCallback1()
+                                        │ TlsCallback2()
+                                        │ ...
+                                        │
+                                        ▼
+                                        4. AddressOfEntryPoint ◀── Debuggers break HERE (too late!)
+                                        │ CRT initialization
+                                        │ main()
+                                        ▼
+                                        5. ExitProcess
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        If anti-debug code runs in a TLS callback, it executes BEFORE your breakpoint
+                                        at the entry point ever gets hit. The program can detect the debugger, modify
+                                        itself, or exit before you even see the first instruction of "main".
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        TLS DIRECTORY IN PE HEADER:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        The PE Optional Header has a DataDirectory entry for TLS:
+                                        DataDirectory[9] = TLS Directory (index 9)
+
+                                        typedef struct _IMAGE_TLS_DIRECTORY64 {
+                                        ULONGLONG StartAddressOfRawData;
+                                        ULONGLONG EndAddressOfRawData;
+                                        ULONGLONG AddressOfIndex;
+                                        ULONGLONG AddressOfCallBacks; // ◀── POINTER TO CALLBACK ARRAY!
+                                        DWORD SizeOfZeroFill;
+                                        DWORD Characteristics;
+                                        } IMAGE_TLS_DIRECTORY64;
+
+                                        AddressOfCallBacks points to a null-terminated array of function pointers.
+                                        Each function is called at thread startup/shutdown.
+                                    </div>
+
+                                    <div class="code-block">
+                                        TLS CALLBACK ANTI-DEBUG EXAMPLE:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        C CODE:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        #include <windows.h>
+
+                                            // TLS callback function signature
+                                            void NTAPI TlsCallback(PVOID DllHandle, DWORD Reason, PVOID Reserved) {
+                                            if (Reason == DLL_PROCESS_ATTACH) {
+                                            // Check for debugger BEFORE main() runs
+                                            if (IsDebuggerPresent()) {
+                                            // Silently corrupt critical data or exit
+                                            ExitProcess(0);
+                                            }
+
+                                            // Check PEB directly (in case IsDebuggerPresent is hooked)
+                                            PPEB peb = (PPEB)__readgsqword(0x60);
+                                            if (peb->BeingDebugged) {
+                                            ExitProcess(0);
+                                            }
+
+                                            // Check NtGlobalFlag
+                                            if (peb->NtGlobalFlag & 0x70) {
+                                            ExitProcess(0);
+                                            }
+                                            }
+                                            }
+
+                                            // Register the TLS callback
+                                            #pragma comment(linker, "/INCLUDE:_tls_used")
+                                            #pragma data_seg(".CRT$XLB")
+                                            PIMAGE_TLS_CALLBACK TlsCallbackArray[] = { TlsCallback, NULL };
+                                            #pragma data_seg()
+
+                                            // By the time main() executes, TlsCallback has already run!
+                                            int main(void) {
+                                            printf("If you see this, no debugger was detected at startup.\n");
+                                            return 0;
+                                            }
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            ASSEMBLY OF TLS CALLBACK:
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            TlsCallback:
+                                            ; Check Reason == DLL_PROCESS_ATTACH (1)
+                                            cmp edx, 1
+                                            jne .exit
+
+                                            ; Direct PEB check (more reliable than API)
+                                            mov rax, gs:[0x60] ; Get PEB
+                                            movzx eax, BYTE PTR [rax+2] ; BeingDebugged
+                                            test eax, eax
+                                            jnz .kill
+
+                                            ; Check NtGlobalFlag
+                                            mov rax, gs:[0x60]
+                                            mov eax, DWORD PTR [rax+0xBC] ; NtGlobalFlag (x64 offset)
+                                            and eax, 0x70
+                                            jnz .kill
+
+                                            .exit:
+                                            ret
+
+                                            .kill:
+                                            xor ecx, ecx
+                                            call ExitProcess ; Terminate before main()
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            FINDING TLS CALLBACKS IN A BINARY:
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            1. Check PE headers: Look at DataDirectory[9] (TLS)
+                                            2. If present, follow AddressOfCallBacks pointer
+                                            3. Each QWORD in the array is a callback function address
+                                            4. Array ends with NULL
+
+                                            In IDA/Ghidra: Look for section named ".tls" or search for
+                                            references to the TLS directory.
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            BYPASSING TLS CALLBACKS:
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            Method 1: Break on TLS callbacks directly
+                                            - x64dbg: Debug > TLS Callbacks (enabled by default in recent versions)
+                                            - Set "System breakpoint" to break before any user code
+
+                                            Method 2: Patch the TLS directory
+                                            - Set DataDirectory[9].VirtualAddress to 0
+                                            - Or set AddressOfCallBacks to point to a null pointer
+
+                                            Method 3: Patch callback functions
+                                            - Find each callback, replace with RET (0xC3)
+
+                                            Method 4: Hook LdrpCallTlsInitializers in ntdll
+                                            - Intercept before callbacks execute
+                                    </div>
+
+                                    <div class="warn-banner">
+                                        <strong>The meta-game:</strong> TLS callbacks can check for debuggers, but they
+                                        can
+                                        also set up anti-debugging. A TLS callback might install an exception handler,
+                                        modify
+                                        code at runtime, or set up timing checkpoints. Always analyze TLS callbacks
+                                        before
+                                        assuming the entry point is where analysis begins.
+                                    </div>
+
+                                    <div class="real-talk">
+                                        <strong>Layered defense:</strong> Real protection doesn't use just one
+                                        technique.
+                                        Sophisticated software combines all of these: TLS callbacks check first, timing
+                                        checks throughout, hardware breakpoint detection periodically, integrity checks
+                                        on code sections, and multiple IsDebuggerPresent variants. Each layer must be
+                                        bypassed for successful analysis.
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART V: THE LINUX ARSENAL (CONSOLE WARFARE)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h2>Part V: The Linux Arsenal (Console Warfare)</h2>
+
+                                    <div class="real-talk">
+                                        <strong>THE MANIFESTO:</strong> On Linux, we don't need GUIs. We don't need
+                                        bloated IDEs
+                                        or point-and-click interfaces. The terminal is our operating table. Every tool
+                                        is a
+                                        scalpel—precise, fast, and infinitely scriptable. When you can pipe the output
+                                        of one
+                                        tool into another, when you can automate analysis with bash, when you can run
+                                        headless
+                                        on a remote server—that's when you're operating at full capacity. GUIs are for
+                                        observation. The terminal is for surgery.
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         RADARE2 (R2)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>Radare2 (r2) — The Swiss Army Knife</h3>
+
+                                    <p>
+                                        <strong>Radare2</strong> is an open-source reverse engineering framework. It's
+                                        powerful,
+                                        cryptic, and has a steep learning curve—but once mastered, it's unstoppable.
+                                        Everything
+                                        is done through short commands. Here are the essentials.
+                                    </p>
+
+                                    <div class="code-block">
+                                        RADARE2 ESSENTIAL COMMANDS:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        OPENING A BINARY:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        $ r2 ./target_binary # Open in read-only mode
+                                        $ r2 -w ./target_binary # Open in write mode (for patching)
+                                        $ r2 -d ./target_binary # Open in debug mode (attach debugger)
+                                        $ r2 -A ./target_binary # Open and auto-analyze (slow but thorough)
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        ANALYSIS COMMANDS:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        [0x00401000]> aa # Analyze All (basic analysis)
+                                        [0x00401000]> aaa # Analyze All Autoname (more thorough)
+                                        [0x00401000]> aaaa # Analyze All Autoname + Experimental ◀── USE THIS
+                                        # Finds functions, strings, xrefs, everything
+
+                                        [0x00401000]> afl # Analyze Function List
+                                        # Lists all detected functions with addresses
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        DISASSEMBLY COMMANDS:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        [0x00401000]> pdf @ main # Print Disassembly Function @ main
+                                        # Shows complete disassembly of main()
+
+                                        [0x00401000]> pdf @ 0x401234 # Disassemble function at specific address
+
+                                        [0x00401000]> pd 50 # Print Disassembly (50 instructions from current)
+
+                                        [0x00401000]> s main # Seek to main (move cursor)
+                                        [0x00401140]> pdf # Now pdf works without @ syntax
+
+                                        Example output:
+                                        ┌ 127: int main (int argc, char **argv);
+                                        │ 0x00401140 55 push rbp
+                                        │ 0x00401141 4889e5 mov rbp, rsp
+                                        │ 0x00401144 4883ec20 sub rsp, 0x20
+                                        │ ┌─< 0x00401148 7415 je 0x40115f │ │ 0x0040114a ... └ └─> 0x00401180 c3 ret
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            STRING SEARCH:
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            [0x00401000]> iz # List all strings in data section
+                                            [0x00401000]> izz # List ALL strings (including code section)
+
+                                            Example output:
+                                            [Strings]
+                                            nth paddr vaddr len size section type string
+                                            ―――――――――――――――――――――――――――――――――――――――――――――――――――――――
+                                            0 0x00002000 0x00402000 14 15 .rodata ascii Password:
+                                            1 0x0000200f 0x0040200f 13 14 .rodata ascii Access Denied
+                                            2 0x0000201d 0x0040201d 14 15 .rodata ascii Access Granted
+
+                                            [0x00401000]> iz~Password # Search strings containing "Password"
+                                            # ~ is the grep operator in r2
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            OPCODE/PATTERN SEARCH:
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            [0x00401000]> /c jmp # Search for JMP instructions
+                                            [0x00401000]> /c call # Search for CALL instructions
+                                            [0x00401000]> /c ret # Search for RET instructions
+
+                                            Example output:
+                                            0x00401050 2 4889c7 mov rdi, rax
+                                            0x00401055 1 e9a6ffffff jmp 0x401000
+                                            0x0040115f 1 eb1f jmp 0x401180
+
+                                            [0x00401000]> /x 4889e5 # Search for raw hex bytes (mov rbp, rsp)
+                                            [0x00401000]> /x 90909090 # Search for NOP sleds
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            CROSS-REFERENCES:
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            [0x00401000]> axt 0x401234 # Find who CALLS/JUMPS TO this address
+                                            [0x00401000]> axf 0x401234 # Find what this address CALLS/JUMPS TO
+
+                                            Very powerful for finding where strings or functions are used!
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            VISUAL MODE (when you need to see it):
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            [0x00401000]> V # Enter visual mode
+                                            [0x00401000]> VV # Enter graph mode (ASCII CFG!)
+
+                                            In visual mode:
+                                            - p/P = cycle through print modes
+                                            - hjkl = navigate (vim-style)
+                                            - Enter = follow jump/call
+                                            - u = undo seek
+                                            - q = quit visual mode
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         GDB (THE GNU DEBUGGER)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>GDB (The GNU Debugger) — The Surgeon's Hands</h3>
+
+                                    <p>
+                                        <strong>GDB</strong> is the standard debugger on Linux. It's been around for
+                                        decades
+                                        and can debug anything—from simple C programs to the Linux kernel itself. Master
+                                        these
+                                        commands and you can debug blind.
+                                    </p>
+
+                                    <div class="code-block">
+                                        GDB ESSENTIAL WORKFLOW:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        STARTING GDB:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        $ gdb ./target_binary # Load binary into GDB
+                                        (gdb)
+
+                                        $ gdb -q ./target_binary # Quiet mode (no banner)
+                                        $ gdb --args ./target arg1 arg2 # Pass arguments to target
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        SETTING BREAKPOINTS:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        (gdb) break main # Break at function main
+                                        (gdb) break *0x401234 # Break at specific address ◀── NOTE THE *
+                                        (gdb) break *0x400500 # Example: break at 0x400500
+
+                                        (gdb) info breakpoints # List all breakpoints
+                                        (gdb) delete 1 # Delete breakpoint #1
+                                        (gdb) disable 2 # Temporarily disable breakpoint #2
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        RUNNING AND CONTROLLING EXECUTION:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        (gdb) run # Start execution
+                                        (gdb) run arg1 arg2 # Start with arguments
+                                        (gdb) continue # Continue after breakpoint (c for short)
+
+                                        (gdb) stepi # Step one INSTRUCTION (into calls)
+                                        (gdb) nexti # Next instruction (over calls)
+                                        (gdb) step # Step one SOURCE LINE (into)
+                                        (gdb) next # Next source line (over)
+
+                                        (gdb) finish # Run until current function returns
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        EXAMINING REGISTERS:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        (gdb) info registers # Show all registers ◀── CRUCIAL
+
+                                        Example output:
+                                        rax 0x7ffff7dd5000 140737351864320
+                                        rbx 0x0 0
+                                        rcx 0x7ffff7dd5000 140737351864320
+                                        rdx 0x7fffffffdf48 140737488346952
+                                        rsi 0x7fffffffdf38 140737488346936
+                                        rdi 0x1 1
+                                        rbp 0x7fffffffde40 0x7fffffffde40
+                                        rsp 0x7fffffffde40 0x7fffffffde40
+                                        rip 0x401140 0x401140 <main>
+                                            eflags 0x246 [ PF ZF IF ]
+
+                                            (gdb) print $rax # Print specific register
+                                            (gdb) print/x $rax # Print in hex
+                                            (gdb) set $rax = 0 # MODIFY register value!
+
+                                            ═════════════════════════════════════════════════════════════════════════════
+
+                                            EXAMINING MEMORY AND CODE:
+                                            ─────────────────────────────────────────────────────────────────────────────
+
+                                            (gdb) x/10i $rip # Examine 10 Instructions at RIP ◀── CRUCIAL
+
+                                            Example output:
+                                            => 0x401140 <main>: push rbp
+                                                0x401141 <main+1>: mov rbp,rsp
+                                                    0x401144 <main+4>: sub rsp,0x20
+                                                        0x401148 <main+8>: mov DWORD PTR [rbp-0x14],edi
+                                                            0x40114b <main+11>: mov QWORD PTR [rbp-0x20],rsi
+                                                                ...
+
+                                                                FORMAT: x/[count][format][size] [address]
+
+                                                                Formats: i=instruction, x=hex, s=string, d=decimal
+                                                                Sizes: b=byte, h=halfword(2), w=word(4), g=giant(8)
+
+                                                                (gdb) x/10x $rsp # 10 hex words at stack pointer
+                                                                (gdb) x/s 0x402000 # String at address
+                                                                (gdb) x/20b $rip # 20 bytes at instruction pointer
+
+                                                                ═════════════════════════════════════════════════════════════════════════════
+
+                                                                MODIFYING MEMORY:
+                                                                ─────────────────────────────────────────────────────────────────────────────
+
+                                                                (gdb) set {int}0x404000 = 1337 # Write int to address
+                                                                (gdb) set {char}0x404000 = 0x90 # Write byte (NOP)
+
+                                                                ═════════════════════════════════════════════════════════════════════════════
+
+                                                                COMPLETE DEBUGGING SESSION EXAMPLE:
+                                                                ─────────────────────────────────────────────────────────────────────────────
+
+                                                                $ gdb -q ./crackme
+                                                                (gdb) break *0x400500 # Break at interesting address
+                                                                Breakpoint 1 at 0x400500
+                                                                (gdb) run
+                                                                Starting program: /home/user/crackme
+
+                                                                Breakpoint 1, 0x0000000000400500 in check_password ()
+                                                                (gdb) info registers # See current state
+                                                                (gdb) x/10i $rip # See next instructions
+                                                                => 0x400500: cmp eax, 0x539 # Comparing with 1337!
+                                                                0x400505: jne 0x400520 # Jump if not equal
+                                                                0x400507: ...
+                                                                (gdb) set $eax = 0x539 # Force correct value
+                                                                (gdb) continue # Continue with patched register
+                                                                Access Granted!
+                                    </div>
+
+                                    <div class="real-talk">
+                                        <strong>GDB + Python scripting:</strong> GDB has a Python API. You can write
+                                        scripts
+                                        that automate entire analysis sessions—set breakpoints, extract data, modify
+                                        execution,
+                                        and generate reports. For repetitive RE tasks, this is game-changing:
+                                        <code>gdb -x script.py ./binary</code>
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART VI: UNPACKING (THE ENDGAME)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h2>Part VI: Unpacking (The Endgame)</h2>
+
+                                    <p>
+                                        You've analyzed clean binaries. Now face reality: most interesting targets are
+                                        <strong>packed</strong>. Packers compress and/or encrypt the original
+                                        executable.
+                                        At runtime, the packer stub decompresses the real code and transfers control to
+                                        it.
+                                        Until you unpack, you're analyzing the packer, not the program.
+                                    </p>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE CONCEPT: HOW PACKERS WORK
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>The Concept: How Packers Work</h3>
+
+                                    <div class="code-block">
+                                        PACKER ARCHITECTURE:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        ORIGINAL BINARY: PACKED BINARY:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        ┌──────────────────────┐ ┌──────────────────────┐
+                                        │ PE/ELF Headers │ │ PE/ELF Headers │ (modified)
+                                        ├──────────────────────┤ ├──────────────────────┤
+                                        │ .text (code) │ ──▶ │ .upx0 (empty) │ (will hold unpacked)
+                                        │ Instructions here │ Pack ├──────────────────────┤
+                                        ├──────────────────────┤ ────▶ │ .upx1 (compressed) │ ◀── Original code,
+                                        │ .data (globals) │ │ XXXXXXXXXXXXXXXX │ compressed!
+                                        ├──────────────────────┤ ├──────────────────────┤
+                                        │ .rdata (strings) │ │ Unpacker Stub │ ◀── Entry point
+                                        └──────────────────────┘ │ (decompression code)│ points HERE
+                                        └──────────────────────┘
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        UNPACKING SEQUENCE AT RUNTIME:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        1. OS loads packed binary
+                                        2. Execution starts at PACKER'S entry point (not original!)
+                                        3. Packer stub runs:
+                                        a. Allocates memory (or uses empty section like .upx0)
+                                        b. Decompresses/decrypts original code INTO that memory
+                                        c. Fixes import table (resolves API addresses)
+                                        d. Jumps to ORIGINAL Entry Point (OEP)
+                                        4. Original program now runs normally
+
+                                        ┌─────────────────────────────────────────────────────────────────────────────┐
+                                        │ │
+                                        │ Packer Entry ───▶ Decompress ───▶ Fix Imports ───▶ JMP to OEP │
+                                        │ │ │ │
+                                        │ │ ▼ │
+                                        │ │ REAL PROGRAM STARTS │
+                                        │ │ (This is what we want) │
+                                        │ ▼ │
+                                        │ If you analyze HERE, you see the packer, not the target! │
+                                        │ │
+                                        └─────────────────────────────────────────────────────────────────────────────┘
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        COMMON PACKERS:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        UPX - Open source, common, easy to unpack (upx -d file.exe)
+                                        Themida - Commercial, heavy VM-based protection
+                                        VMProtect - Converts code to custom VM bytecode
+                                        ASPack - Older but still seen
+                                        PECompact - Compression focused
+
+                                        Custom packers - Malware often uses unique packers to evade detection
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE WORKFLOW: MANUAL UNPACKING
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>The Workflow: Manual Unpacking</h3>
+
+                                    <p>
+                                        When automatic tools fail (or you're dealing with custom packers), you unpack
+                                        manually.
+                                        The workflow is always the same: find where the packer jumps to the original
+                                        code,
+                                        let it unpack, then dump the unpacked program from memory.
+                                    </p>
+
+                                    <div class="code-block">
+                                        MANUAL UNPACKING WORKFLOW:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        STEP 1: FIND THE ORIGINAL ENTRY POINT (OEP)
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        The packer MUST eventually jump to the real code.
+                                        Look for:
+                                        - JMP to a very different memory region
+                                        - JMP EAX / JMP [EAX] after lots of computation
+                                        - PUSH addr + RET (equivalent to JMP)
+                                        - Long decompression loop followed by single JMP
+
+                                        The jump target is the OEP.
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        STEP 2: LET THE PACKER RUN, THEN DUMP
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        1. Set breakpoint at the OEP jump (or just after it)
+                                        2. Run the program
+                                        3. Packer decompresses everything into memory
+                                        4. Breakpoint hits at OEP
+                                        5. NOW the unpacked code is in memory!
+
+                                        Use a dumping tool:
+                                        - x64dbg: Plugins > Scylla (built-in)
+                                        - OllyDbg: OllyDumpEx plugin
+                                        - Process dump tools: procdump, pe-sieve
+
+                                        (gdb) dump binary memory unpacked.bin 0x400000 0x450000
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        STEP 3: FIX THE IMPORT TABLE (IAT)
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        The dumped binary has a BROKEN import table because:
+                                        - The packer resolved imports at runtime
+                                        - The IAT now contains actual addresses (like 0x7FFE12340000)
+                                        - These addresses are only valid in the running process!
+
+                                        To make the dump executable standalone:
+
+                                        1. Use Scylla: IAT Autosearch → Get Imports → Fix Dump
+                                        2. Or manually rebuild the IAT with ImpREC
+                                        3. Or use pe_unmapper / Imports Fixer tools
+
+                                        After fixing:
+                                        ┌─────────────────────┐ ┌─────────────────────┐
+                                        │ Broken IAT │ ──▶ │ Fixed IAT │
+                                        │ 0x7FFE12340000 │ Fix │ kernel32.dll │
+                                        │ 0x7FFE12340050 │ ────▶ │ CreateFileA │
+                                        │ 0x7FFE45670000 │ │ ReadFile │
+                                        │ ... │ │ user32.dll │
+                                        └─────────────────────┘ │ MessageBoxA │
+                                        └─────────────────────┘
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         THE ESP TRICK
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h3>The ESP Trick (Finding OEP Via Stack)</h3>
+
+                                    <p>
+                                        One of the most reliable techniques to find the OEP in many packers. It exploits
+                                        the fact that packers must <strong>restore the original stack state</strong>
+                                        before
+                                        jumping to the OEP.
+                                    </p>
+
+                                    <div class="code-block">
+                                        THE ESP TRICK EXPLAINED:
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        WHY IT WORKS:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        When Windows starts a process:
+                                        - ESP points to a specific stack location
+                                        - This location contains argc, argv, and other startup data
+
+                                        The ORIGINAL program expects ESP at this exact position.
+
+                                        The packer:
+                                        1. Saves registers and modifies ESP during unpacking
+                                        2. MUST restore ESP to original value before OEP
+                                        3. Usually does: POPAD (restore all) then JMP to OEP
+
+                                        Technique:
+                                        - Watch for access to the ORIGINAL ESP value
+                                        - When it's restored, OEP jump is imminent!
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        THE WORKFLOW:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        1. Load packed binary in debugger
+                                        2. Note initial ESP value: ESP = 0x0019FF88 (example)
+                                        3. Run until first instruction executes (bypass TLS)
+                                        4. Set HARDWARE BREAKPOINT on [ESP]:
+                                        - Type: Memory Access
+                                        - Address: 0x0019FF88 (the original ESP location)
+                                        - Condition: Read/Write
+
+                                        In x64dbg:
+                                        Right-click ESP value → "Follow in Dump"
+                                        Right-click in dump → Breakpoint → Hardware, Access → DWORD
+
+                                        5. Run the program
+                                        6. Breakpoint hits when packer READS from original stack
+                                        (This is POPAD or equivalent restoring registers)
+                                        7. Single-step a few instructions
+                                        8. You'll see: POPAD followed by JMP/RET
+                                        9. That jump goes to OEP!
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        EXAMPLE SESSION (UPX packed binary):
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        [Debugger loads binary]
+                                        Initial ESP: 0x0019FF88
+
+                                        [Set hardware breakpoint on 0x0019FF88 for access]
+
+                                        [Run]
+                                        ... packer decompresses ...
+
+                                        [Hardware breakpoint triggers]
+                                        Current instruction: POPAD
+
+                                        [Step once]
+                                        Next instruction: JMP 0x00401000
+                                        ▲▲▲▲▲▲▲▲▲▲
+                                        │
+                                        └─ THIS IS THE OEP!
+
+                                        [Set breakpoint at 0x00401000, run to it]
+                                        [Dump process with Scylla]
+                                        [Fix imports]
+                                        [Done - you have the unpacked binary!]
+
+                                        ═════════════════════════════════════════════════════════════════════════════
+
+                                        VARIATIONS AND ANTI-TRICKS:
+                                        ─────────────────────────────────────────────────────────────────────────────
+
+                                        Some packers know about ESP trick:
+                                        - They redirect ESP to a different stack
+                                        - They use POPA but then manually adjust ESP
+                                        - They never fully restore (use stack pivot)
+
+                                        Counter-measures:
+                                        - Watch for any JMP/CALL to low addresses (main code section)
+                                        - Look for sudden change from packer section to main section
+                                        - Single-step through the final decompression phase
+                                    </div>
+
+                                    <div class="warn-banner">
+                                        <strong>Hardware breakpoints are key:</strong> Software breakpoints (0xCC) won't
+                                        work for the ESP trick because we're watching MEMORY ACCESS, not code execution.
+                                        Use DR0-DR3 hardware breakpoints set to trigger on memory read/write.
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         CONCLUSION
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <h2>Conclusion: The Art of Seeing Truth</h2>
+
+                                    <div class="real-talk" style="border-left: 4px solid #ff4444;">
+                                        <strong>REVERSE ENGINEERING IS SEEING TRUTH.</strong><br><br>
+
+                                        When you look at a compiled binary, you're not looking at what the developer
+                                        intended
+                                        you to see. You're looking at what actually exists. The marketing says "secure."
+                                        The
+                                        binary says there's a hardcoded backdoor at offset 0x4012A0. The EULA says
+                                        "proprietary
+                                        algorithm." The disassembly shows XOR with a static key.<br><br>
+
+                                        Every technique in this module—understanding binary formats, reading
+                                        disassembly,
+                                        setting breakpoints, bypassing anti-debug, unpacking protected code—they all
+                                        serve
+                                        one purpose: to reveal what is hidden.<br><br>
+
+                                        <strong>What you've learned:</strong>
+                                        <ul style="margin-top: 15px; line-height: 1.8;">
+                                            <li><strong>Binary Anatomy</strong> — PE and ELF structures, sections,
+                                                permissions, entry points</li>
+                                            <li><strong>Static Analysis</strong> — Decompilers lie, CFGs don't. Pattern
+                                                recognition in assembly.</li>
+                                            <li><strong>Dynamic Analysis</strong> — Debugger attachment, software vs
+                                                hardware breakpoints, stepping</li>
+                                            <li><strong>Anti-Debugging</strong> — PEB checks, timing attacks, TLS
+                                                callbacks, and how to defeat them</li>
+                                            <li><strong>Linux Tools</strong> — Radare2 and GDB command mastery</li>
+                                            <li><strong>Unpacking</strong> — OEP hunting, ESP trick, IAT reconstruction
+                                            </li>
+                                        </ul><br>
+
+                                        This is the foundation. With these skills, you can analyze malware, audit
+                                        security,
+                                        bypass protections, understand systems at their deepest level, and see what
+                                        others
+                                        cannot see.<br><br>
+
+                                        <em>The binary never lies. Learn to read it, and you learn the truth.</em>
+                                    </div>
+
+                                    <!-- ═══════════════════════════════════════════════════════════════════════
+         NAVIGATION FOOTER
+    ════════════════════════════════════════════════════════════════════════ -->
+
+                                    <div
+                                        style="margin-top: 60px; padding: 30px; border-top: 2px solid #333; text-align: center;">
+                                        <p style="margin-bottom: 20px; color: #888;">MODULE 02 COMPLETE</p>
+                                        <a href="module_03.html" class="nav-item"
+                                            style="display:inline-block; padding: 15px 40px; font-size: 1.2em; background: linear-gradient(135deg, #ff4444, #cc0000); border: none;">
+                                            PROCEED TO MODULE 03: PORT SCANNER IMPLEMENTATION →
+                                        </a>
+                                        <br><br>
+                                        <a href="index.html" class="nav-item"
+                                            style="display:inline-block; padding: 10px 25px;">
+                                            ← RETURN TO INDEX
+                                        </a>
+                                    </div>
+
+</body>
+
+</html>

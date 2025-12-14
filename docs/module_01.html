@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODULE 01: THE METAL</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <h1>MODULE 01: THE METAL</h1>
+    <p><a href="index.html" class="nav-item" style="display:inline-block;padding:8px 15px;">← BACK TO INDEX</a></p>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART I: THE VIRTUAL MEMORY SPACE
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h2>Part I: The Virtual Memory Space</h2>
+
+    <p>
+        Forget abstractions. At the lowest level, memory is just a linear array of bytes—nothing more.
+        Every byte has an address, starting from 0x00000000 and going up. Your program doesn't see
+        physical RAM directly; it sees a virtual address space that the kernel maps to real memory.
+        This is your battlefield.
+    </p>
+
+    <div class="real-talk">
+        When you write <code>int x = 42;</code>, you're telling the machine: "Reserve 4 bytes
+        somewhere in this linear array and store the binary representation of 42 there."
+    </div>
+
+    <h2>Memory Layout Diagram</h2>
+
+    <div class="code-block">
+        +---------------------------+ 0xFFFFFFFF (High Address)
+        | KERNEL SPACE | ← Off-limits. Touch this and die.
+        +---------------------------+ 0xC0000000 (Typical boundary)
+        | |
+        | STACK | ← Grows DOWNWARD (toward lower addresses)
+        | ↓ |
+        | |
+        +---------------------------+
+        | |
+        | (Free Space) |
+        | |
+        +---------------------------+
+        | ↑ |
+        | HEAP | ← Grows UPWARD (toward higher addresses)
+        | |
+        +---------------------------+
+        | BSS | ← Uninitialized global/static variables (zeroed)
+        +---------------------------+
+        | DATA | ← Initialized global/static variables
+        +---------------------------+
+        | TEXT | ← Your compiled code (read-only, executable)
+        +---------------------------+ 0x00000000 (Low Address)
+    </div>
+
+    <h2>Why Stack Down, Heap Up?</h2>
+
+    <p>
+        This is not arbitrary. The stack and heap grow toward each other to maximize the use of
+        the address space between them. If both grew in the same direction, you'd waste space.
+    </p>
+
+    <p>
+        <strong>The Stack</strong> is fast, automatic memory. Every function call pushes a new frame
+        onto the stack. When the function returns, that frame is popped. It grows downward from
+        high addresses because that's how the x86 PUSH instruction works—it decrements the stack
+        pointer (ESP/RSP) before storing data.
+    </p>
+
+    <p>
+        <strong>The Heap</strong> is manual memory—what you get from malloc(). It grows upward
+        from the end of the BSS section. The kernel tracks a "program break" (brk) that defines
+        where the heap ends. When you need more heap, brk moves up.
+    </p>
+
+    <div class="warn-banner">
+        If Stack and Heap ever collide, your program is dead. This is a stack overflow
+        or heap exhaustion. There is no recovery.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART II: POINTERS & ARITHMETIC
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h2>Part II: Pointers &amp; Arithmetic</h2>
+
+    <p>
+        A pointer is not magic. It is simply a variable that holds a memory address. That's it.
+        When you declare <code>int *p</code>, you're creating a variable that stores the address
+        of an integer somewhere in that linear byte array we discussed.
+    </p>
+
+    <div class="code-block">
+        int x = 42; // x lives at some address, say 0x7FFE1234
+        int *p = &amp;x; // p now holds the value 0x7FFE1234
+        // *p dereferences: "go to address 0x7FFE1234 and read 4 bytes as an int"
+    </div>
+
+    <h2>Pointer Arithmetic: The Trap</h2>
+
+    <p>
+        Here's where beginners get wrecked. When you add 1 to a pointer, you don't move 1 byte—you
+        move by the size of the type the pointer points to.
+    </p>
+
+    <div class="real-talk">
+        <code>int* p; p + 1</code> does NOT add 1 byte. It adds <code>sizeof(int)</code> bytes,
+        which is typically 4. The compiler scales the arithmetic based on the pointer's type.
+    </div>
+
+    <div class="code-block">
+        #include &lt;stdio.h&gt;
+
+        int main() {
+        int arr[4] = {10, 20, 30, 40};
+        int *p = arr; // p points to arr[0]
+
+        printf("p = %p | *p = %d\n", (void*)p, *p);
+        printf("p + 1 = %p | *(p+1) = %d\n", (void*)(p+1), *(p+1));
+        printf("p + 2 = %p | *(p+2) = %d\n", (void*)(p+2), *(p+2));
+
+        // Notice: addresses differ by 4, not 1
+        // p = 0x7FFE0000 | *p = 10
+        // p + 1 = 0x7FFE0004 | *(p+1) = 20
+        // p + 2 = 0x7FFE0008 | *(p+2) = 30
+
+        return 0;
+        }
+    </div>
+
+    <p>
+        This is why pointer arithmetic works seamlessly with arrays. <code>arr[i]</code> is
+        literally syntactic sugar for <code>*(arr + i)</code>. The compiler knows the type,
+        calculates the offset, and dereferences. No bounds checking. No safety. Pure metal.
+    </p>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART III: THE CURSE OF ASSEMBLY (x64)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h2>Part III: The Curse of Assembly (x64)</h2>
+
+    <p>
+        The CPU doesn't know what a "variable" is. It doesn't understand types, names, or your
+        high-level abstractions. The CPU only knows <strong>registers</strong>—a tiny set of
+        ultra-fast storage locations built directly into the processor silicon. Everything your
+        program does ultimately becomes register operations.
+    </p>
+
+    <div class="real-talk">
+        When you write <code>int result = a + b;</code>, the CPU actually does: load 'a' into a
+        register, load 'b' into another register, add them, store the result. Variables are
+        illusions maintained by the compiler.
+    </div>
+
+    <h2>General Purpose Registers (x64)</h2>
+
+    <table style="width:100%; border-collapse:collapse; margin:20px 0;">
+        <tr style="border-bottom:2px solid #fff;">
+            <th style="text-align:left; padding:10px; border:1px solid #333;">Register</th>
+            <th style="text-align:left; padding:10px; border:1px solid #333;">Purpose</th>
+            <th style="text-align:left; padding:10px; border:1px solid #333;">Notes</th>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RAX</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Accumulator / Return Value</td>
+            <td style="padding:10px; border:1px solid #333;">Function return values go here. Math results accumulate
+                here.</td>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RBX</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Base Register</td>
+            <td style="padding:10px; border:1px solid #333;">Callee-saved. Often used as a base pointer for data.</td>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RCX</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Counter / 1st Arg (Windows)</td>
+            <td style="padding:10px; border:1px solid #333;">Loop counter for REP instructions. 1st argument on Windows
+                x64.</td>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RDX</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Data / 2nd Arg (Windows)</td>
+            <td style="padding:10px; border:1px solid #333;">Used in division. 3rd argument on Linux, 2nd on Windows.
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RSI</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Source Index / 2nd Arg (Linux)</td>
+            <td style="padding:10px; border:1px solid #333;">Source pointer for string operations. 2nd arg in System V
+                ABI.</td>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RDI</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Destination Index / 1st Arg (Linux)</td>
+            <td style="padding:10px; border:1px solid #333;">Destination for string ops. 1st argument in System V ABI.
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RBP</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Base Pointer (Frame Pointer)</td>
+            <td style="padding:10px; border:1px solid #333;">Points to the base of the current stack frame. Critical for
+                debugging.</td>
+        </tr>
+        <tr>
+            <td style="padding:10px; border:1px solid #333;"><strong>RSP</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Stack Pointer</td>
+            <td style="padding:10px; border:1px solid #333;">ALWAYS points to the top of the stack. Touch with extreme
+                caution.</td>
+        </tr>
+        <tr style="background-color:#111;">
+            <td style="padding:10px; border:1px solid #333;"><strong>RIP</strong></td>
+            <td style="padding:10px; border:1px solid #333;">Instruction Pointer</td>
+            <td style="padding:10px; border:1px solid #333;">THE GOLDEN TARGET. Points to the next instruction. Control
+                this = control execution.</td>
+        </tr>
+    </table>
+
+    <div class="warn-banner">
+        RIP is the holy grail of exploitation. If you can overwrite RIP, you control
+        where the CPU executes next. This is the foundation of Return-Oriented Programming (ROP).
+    </div>
+
+    <h2>Sub-Registers: The Russian Dolls</h2>
+
+    <p>
+        x64 registers are 64 bits wide, but you can access smaller portions of them. This is
+        backwards compatibility from the 8086 era. Understanding this is critical for reading
+        disassembly and writing shellcode.
+    </p>
+
+    <div class="code-block">
+        |<──────────────────── RAX (64 bits) ────────────────────>|
+            |<──────── EAX (32 bits) ────────>|
+                |<─── AX (16) ───>|
+                    |<─ AH ─>|<─ AL ─>|
+                            (8 bits) (8 bits)
+
+                            ┌────────────────────────────────────────────────────────────────┐
+                            │ (Upper 32 bits) │ EAX │ AH │ AL │
+                            │ Zeroed on │ (32-bit) │ (High │ (Low │
+                            │ write to EAX │ │ Byte) │ Byte) │
+                            └────────────────────────────────────────────────────────────────┘
+                            Bits 63-32 Bits 31-16 Bits 15-8 Bits 7-0
+    </div>
+
+    <div class="real-talk">
+        <strong>Critical:</strong> Writing to EAX zeros the upper 32 bits of RAX. Writing to
+        AX, AH, or AL does NOT zero anything—it only modifies those specific bits. This quirk
+        has caused countless bugs and is exploited in size-restricted shellcode.
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         PART IV: THE INSTRUCTION SET
+    ════════════════════════════════════════════════════════════════════════ -->
+
+    <h2>Part IV: The Instruction Set</h2>
+
+    <p>
+        Assembly instructions follow a simple pattern in Intel syntax:
+    </p>
+
+    <div class="code-block">
+        OPCODE DESTINATION, SOURCE
+
+        ; Example: Move the value 42 into the RAX register
+        MOV RAX, 42
+
+        ; The destination is modified. The source is read-only.
+        ; Think of it as: DESTINATION = SOURCE
+    </div>
+
+    <h2>The Big 5: Instructions You Must Know</h2>
+
+    <h3>1. MOV — Data Transfer</h3>
+    <p>The workhorse. Copies data from source to destination.</p>
+    <div class="code-block">
+        MOV RAX, RBX ; RAX = RBX (register to register)
+        MOV RAX, [RBX] ; RAX = *RBX (load from memory address in RBX)
+        MOV [RAX], RBX ; *RAX = RBX (store to memory address in RAX)
+        MOV RAX, 0x1337 ; RAX = 0x1337 (immediate value)
+    </div>
+
+    <h3>2. ADD / SUB — Arithmetic</h3>
+    <p>Basic math. Modifies the destination in place.</p>
+    <div class="code-block">
+        ADD RAX, RBX ; RAX = RAX + RBX
+        SUB RAX, 10 ; RAX = RAX - 10
+        ADD RAX, [RSI] ; RAX = RAX + value at address RSI
+    </div>
+
+    <h3>3. LEA — Load Effective Address (The Hacker's Trick)</h3>
+    <p>
+        LEA computes an address but doesn't access memory. Hackers and compilers abuse this
+        for fast arithmetic because it can do addition and multiplication in one instruction.
+    </p>
+    <div class="code-block">
+        ; Instead of:
+        MOV RAX, RBX
+        ADD RAX, RCX
+
+        ; Hackers use:
+        LEA RAX, [RBX + RCX] ; RAX = RBX + RCX (no memory access!)
+
+        ; Even crazier - multiply and add in one instruction:
+        LEA RAX, [RBX + RCX*4 + 8] ; RAX = RBX + (RCX * 4) + 8
+    </div>
+
+    <div class="real-talk">
+        LEA doesn't touch memory—it just calculates the address formula. The brackets are
+        deceptive. This makes LEA perfect for complex math without memory overhead.
+    </div>
+
+    <h3>4. CMP — Compare (The Basis of Logic)</h3>
+    <p>
+        CMP subtracts the source from the destination but throws away the result. It only
+        sets the FLAGS register based on the comparison. This enables conditional jumps.
+    </p>
+    <div class="code-block">
+        CMP RAX, RBX ; Compute RAX - RBX, set flags, discard result
+        ; If RAX == RBX → Zero Flag (ZF) = 1
+        ; If RAX < RBX → Carry Flag (CF)=1 ; If RAX> RBX → ZF=0, CF=0
+    </div>
+
+    <h3>5. JMP / JE / JNE — Control Flow (The GOTO Commands)</h3>
+    <p>These change RIP directly. They are how the CPU implements if/else, loops, and function calls.</p>
+    <div class="code-block">
+        JMP label ; Unconditional jump. RIP = address of label
+        JE label ; Jump if Equal (ZF=1). Used after CMP.
+        JNE label ; Jump if Not Equal (ZF=0)
+        JL label ; Jump if Less Than (signed)
+        JG label ; Jump if Greater Than (signed)
+        JLE label ; Jump if Less or Equal
+        JGE label ; Jump if Greater or Equal
+    </div>
+
+    <h2>Side-by-Side: C → Assembly Translation</h2>
+
+    <p>
+        Understanding how high-level code becomes assembly is the key to reverse engineering.
+        Here's a simple if/else statement and its compiled form:
+    </p>
+
+    <div class="code-block">
+        ╔═══════════════════════════════╦═══════════════════════════════════════════╗
+        ║ C SOURCE CODE ║ x64 ASSEMBLY (Intel Syntax) ║
+        ╠═══════════════════════════════╬═══════════════════════════════════════════╣
+        ║ ║ ║
+        ║ int check(int x) { ║ check: ║
+        ║ if (x > 10) { ║ CMP EDI, 10 ; Compare x to 10 ║
+        ║ return 1; ║ JLE .else_branch ; If x <= 10, jump║ ║ } else { ║ MOV EAX, 1 ; Return 1 ║ ║ return 0; ║ RET ║ ║ }
+            ║ .else_branch: ║ ║ } ║ MOV EAX, 0 ; Return 0 ║ ║ ║ RET ║ ║ ║ ║
+            ╚═══════════════════════════════╩═══════════════════════════════════════════╝ </div>
+
+            <div class="real-talk">
+                Notice: The compiler inverted the condition. C says "if x > 10", but assembly says
+                "if x <= 10, skip to else". This is called <strong>branch inversion</strong> and is
+                    extremely common. It minimizes jumps in the expected path.
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════════════
+         PART V: THE STACK FRAME (ANATOMY OF A CRASH)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+            <h2>Part V: The Stack Frame (Anatomy of a Crash)</h2>
+
+            <p>
+                The stack is where function calls live and die. Every time you call a function, the CPU
+                allocates a <strong>stack frame</strong>—a contiguous block of memory that holds local
+                variables, saved registers, and most importantly, the <strong>return address</strong>.
+                Understanding the stack frame is not optional for exploitation. It is the foundation upon
+                which every buffer overflow, ROP chain, and control-flow hijack is built.
+            </p>
+
+            <h3>The Concept: Stack Growth Direction</h3>
+
+            <p>
+                Here's the first thing that confuses everyone: <strong>the stack grows downward</strong>.
+                When you push data onto the stack, the stack pointer (RSP) decreases—it moves toward
+                <em>lower</em> memory addresses. When you pop data off, RSP increases.
+            </p>
+
+            <div class="real-talk">
+                Think of it this way: the stack starts at a high address (like 0x7FFFFFFFF000) and grows
+                toward 0x0. Every PUSH instruction <em>subtracts</em> from RSP before storing data. Every
+                POP instruction reads data then <em>adds</em> to RSP. This is hardwired into the x86
+                architecture—it's not a software decision.
+            </div>
+
+            <p>
+                Why does this matter? Because the growth direction determines how buffer overflows work.
+                Local variables are stored at lower addresses than the return address. When you write past
+                the end of a buffer, you write <em>upward</em> in memory—toward the saved frame pointer
+                and return address. This is not coincidence. This is the geometry of exploitation.
+            </p>
+
+            <div class="code-block">
+                HIGH MEMORY (e.g., 0x7FFF0100)
+                │
+                ▼ (Stack grows downward)
+
+                ┌───────────────────────┐
+                │ Return Address │ ← Saved by CALL instruction
+                ├───────────────────────┤
+                │ Saved RBP │ ← Saved by function prologue
+                ├───────────────────────┤
+                │ Local Variable 1 │
+                ├───────────────────────┤
+                │ Local Variable 2 │
+                ├───────────────────────┤
+                │ Local Buffer[10] │ ← Buffer starts here
+                ├───────────────────────┤
+                │ ... │
+                └───────────────────────┘
+                │
+                ▼
+                LOW MEMORY (e.g., 0x7FFF0050)
+
+                RSP points here (top of stack)
+            </div>
+
+            <p>
+                Notice the layout: the return address sits at a <em>higher</em> address than local
+                variables. When you overflow a local buffer, you write toward higher addresses—directly
+                toward the return address. This is the fundamental geometry that makes stack-based
+                exploitation possible.
+            </p>
+
+            <h3>The Prologue: Dissecting Function Entry</h3>
+
+            <p>
+                When a function is called, the CPU executes a <strong>prologue</strong>—a short sequence
+                of instructions that sets up the stack frame. This is generated by the compiler for every
+                function, and understanding it byte-by-byte is essential for debugging, reverse
+                engineering, and exploitation. Let's dissect the classic prologue step by step.
+            </p>
+
+            <div class="code-block">
+                ; Standard x64 Function Prologue
+                push rbp ; Step 1: Save old base pointer
+                mov rbp, rsp ; Step 2: Establish new base pointer
+                sub rsp, 0x10 ; Step 3: Allocate 16 bytes for locals
+            </div>
+
+            <p>
+                Let's trace through each instruction with concrete register values. Assume we're calling
+                function <code>vuln()</code> and the initial state is:
+            </p>
+
+            <div class="code-block">
+                INITIAL STATE (just after CALL transfers control to vuln):
+
+                RSP = 0x7FFE0FF8 (stack pointer - CALL already pushed return address here)
+                RBP = 0x7FFE1050 (base pointer - still pointing to caller's frame)
+                RIP = address of first instruction in vuln()
+
+                Memory at 0x7FFE0FF8: [Return Address to caller]
+            </div>
+
+            <h4>Step 1: PUSH RBP</h4>
+
+            <div class="code-block">
+                push rbp
+
+                ; This instruction does TWO things:
+                ; 1. RSP = RSP - 8 (decrement stack pointer by 8 bytes)
+                ; 2. [RSP] = RBP (store RBP value at new RSP location)
+
+                AFTER PUSH RBP:
+
+                RSP = 0x7FFE0FF0 (was 0x7FFE0FF8, now 8 bytes lower)
+                RBP = 0x7FFE1050 (unchanged - still old value)
+
+                Memory Layout:
+                0x7FFE0FF8: [Return Address] ← Saved by CALL
+                0x7FFE0FF0: [0x7FFE1050] ← Saved RBP (old frame pointer)
+                ↑
+                RSP points here now
+            </div>
+
+            <p>
+                The PUSH instruction is atomic from a logical perspective: it decrements RSP first, then
+                writes the value. We save the caller's RBP so we can restore it when this function
+                returns. This creates a <strong>linked list</strong> of stack frames—each frame's saved
+                RBP points to the previous frame. Debuggers use this chain to generate stack traces.
+            </p>
+
+            <h4>Step 2: MOV RBP, RSP</h4>
+
+            <div class="code-block">
+                mov rbp, rsp
+
+                ; This instruction:
+                ; RBP = RSP (copy stack pointer to base pointer)
+
+                AFTER MOV RBP, RSP:
+
+                RSP = 0x7FFE0FF0 (unchanged)
+                RBP = 0x7FFE0FF0 (now equals RSP - base is established)
+
+                Memory Layout:
+                0x7FFE0FF8: [Return Address] ← RBP + 8 points here
+                0x7FFE0FF0: [Saved old RBP] ← RBP points here, RSP also here
+            </div>
+
+            <p>
+                Now RBP is the <strong>anchor</strong> for this function's stack frame. RBP will not
+                change for the rest of this function's execution (unless explicitly modified). This
+                gives us a stable reference point: local variables will be at <code>RBP - offset</code>,
+                and parameters/return address will be at <code>RBP + offset</code>.
+            </p>
+
+            <div class="real-talk">
+                <strong>Why use RBP at all?</strong> RSP changes constantly as we push/pop data or call
+                other functions. Having a fixed RBP makes accessing local variables simpler—the offset
+                from RBP never changes regardless of how the stack fluctuates. Modern compilers with
+                <code>-fomit-frame-pointer</code> can eliminate RBP for optimization, but at the cost of
+                making debugging and stack unwinding harder.
+            </div>
+
+            <h4>Step 3: SUB RSP, 0x10</h4>
+
+            <div class="code-block">
+                sub rsp, 0x10
+
+                ; This instruction:
+                ; RSP = RSP - 16 (allocate 16 bytes for local variables)
+
+                AFTER SUB RSP, 0x10:
+
+                RSP = 0x7FFE0FE0 (was 0x7FFE0FF0, now 16 bytes lower)
+                RBP = 0x7FFE0FF0 (unchanged - stable reference)
+
+                Memory Layout:
+                0x7FFE0FF8: [Return Address] ← RBP + 8
+                0x7FFE0FF0: [Saved RBP] ← RBP + 0
+                0x7FFE0FE8: [Local var 1] ← RBP - 8
+                0x7FFE0FE0: [Local var 2] ← RBP - 16 = RSP
+                ↑
+                RSP points here now
+            </div>
+
+            <p>
+                This is where local variable space is carved out. The <code>0x10</code> (16 bytes) is
+                calculated by the compiler based on how much space your local variables need. If you
+                have <code>int x;</code> and <code>int y;</code>, that's 8 bytes, but the compiler may
+                round up for alignment (we'll cover this in Part VI).
+            </p>
+
+            <p>
+                After the prologue completes, the stack frame is fully established. All local variable
+                accesses will use negative offsets from RBP, like <code>[RBP - 4]</code> for the first
+                local integer.
+            </p>
+
+            <h3>The Complete Stack Frame Diagram</h3>
+
+            <p>
+                Here is the detailed anatomy of a stack frame after the prologue, showing every byte
+                and its purpose. Study this diagram until it's burned into your memory—this is the
+                foundation of all stack exploitation.
+            </p>
+
+            <div class="code-block">
+                ════════════════════════════════════════════════════════════════════════════════
+                COMPLETE x64 STACK FRAME ANATOMY
+                ════════════════════════════════════════════════════════════════════════════════
+
+                HIGHER MEMORY ADDRESSES
+                ========================
+                │
+                │ ┌─────────────────────────────────────┐
+                │ │ CALLER'S STACK FRAME │
+                │ │ (Previous function's local data) │
+                │ └─────────────────────────────────────┘
+                │
+                ┌───────────────┼───────────────────────────────────────────────────────────────┐
+                │ ▼ │
+                │ 0x7FFE1008 ┌────────────────────────────────────────────────────────────┐ │
+                │ │ │ │
+                │ │ ARGUMENT 7+ (if more than 6 args) │ │
+                │ │ [Passed on stack - only if needed] │ │
+                │ │ │ │
+                │ RBP + 0x18 ├────────────────────────────────────────────────────────────┤ │
+                │ │ │ │
+                │ │ SHADOW SPACE (Windows x64 only - 32 bytes) │ │
+                │ │ [Reserved for callee to spill register args] │ │
+                │ │ │ │
+                │ RBP + 0x10 ├────────────────────────────────────────────────────────────┤ │
+                │ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ │
+                │ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ │
+                │ RBP + 0x08 │░░░░░░░░░░ RETURN ADDRESS (8 bytes) ░░░░░░░░░░░░░░░░░░░░░░│ │
+                │ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ │
+                │ │░░░░░░░░░░ [Pushed by CALL instruction] ░░░░░░░░░░░░░░░░░░│ │
+                │ │░░░░░░░░░░ THE GOLDEN TARGET FOR EXPLOITS ░░░░░░░░░░░░░░░░│ │
+                │ │░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│ │
+                │ ├────────────────────────────────────────────────────────────┤ │
+                │ │ │ │
+                │ RBP + 0x00 │ SAVED RBP (8 bytes) │◄─┼── RBP POINTS HERE
+                │ │ [Pushed by prologue: push rbp] │ │ (Frame Pointer)
+                │ │ [Points to caller's RBP - forms linked list] │ │
+                │ │ │ │
+                │ ├═══════════════════════════════════════════════════════════─┤ │
+                │ │ │ │
+                │ │ ▲▲▲ FUNCTION PROLOGUE ESTABLISHES ▲▲▲ │ │
+                │ │ ▼▼▼ LOCAL VARIABLE SPACE BELOW ▼▼▼ │ │
+                │ │ │ │
+                │ ├────────────────────────────────────────────────────────────┤ │
+                │ │ │ │
+                │ RBP - 0x04 │ LOCAL VARIABLE: int a (4 bytes) │ │
+                │ │ [Access: mov eax, [rbp - 0x4]] │ │
+                │ │ │ │
+                │ ├────────────────────────────────────────────────────────────┤ │
+                │ │ │ │
+                │ RBP - 0x08 │ LOCAL VARIABLE: int b (4 bytes) │ │
+                │ │ [Access: mov eax, [rbp - 0x8]] │ │
+                │ │ │ │
+                │ ├────────────────────────────────────────────────────────────┤ │
+                │ │ │ │
+                │ RBP - 0x12 │ LOCAL BUFFER: char buffer[10] (10 bytes) │ │
+                │ │ ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐ │ │
+                │ │ │[0]│[1]│[2]│[3]│[4]│[5]│[6]│[7]│[8]│[9]│ │ │
+                │ │ └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘ │ │
+                │ │ [Buffer starts at RBP - 0x12 (lowest byte)] │ │
+                │ │ [Buffer ends at RBP - 0x09 (highest byte)] │ │
+                │ │ │ │
+                │ ├────────────────────────────────────────────────────────────┤ │
+                │ │ │ │
+                │ RBP - 0x18 │ ALIGNMENT PADDING (may be added by compiler) │ │
+                │ │ [Ensures RSP is 16-byte aligned] │ │
+                │ │ │ │
+                │ RSP ──────► ├────────────────────────────────────────────────────────────┤ │
+                │ │ │ │
+                │ │ ▼▼▼ TOP OF STACK ▼▼▼ │ │
+                │ │ [RSP points here after prologue] │ │
+                │ │ [Any PUSH decreases RSP, allocates below] │ │
+                │ │ │ │
+                │ └────────────────────────────────────────────────────────────┘ │
+                │ │
+                └───────────────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+                LOWER MEMORY ADDRESSES
+                =======================
+                (Stack grows toward here)
+
+
+                ════════════════════════════════════════════════════════════════════════════════
+                MEMORY ACCESS REFERENCE
+                ════════════════════════════════════════════════════════════════════════════════
+
+                POSITIVE OFFSETS FROM RBP (above frame pointer):
+                ────────────────────────────────────────────────
+                [RBP + 0x08] → Return Address (CRITICAL - overwrite = control RIP)
+                [RBP + 0x10] → First stack argument (7th+ parameter)
+                [RBP + 0x18] → Second stack argument (8th+ parameter)
+
+                NEGATIVE OFFSETS FROM RBP (below frame pointer):
+                ────────────────────────────────────────────────
+                [RBP - 0x04] → First local variable (closest to RBP)
+                [RBP - 0x08] → Second local variable
+                [RBP - 0x12] → Start of local buffer
+                ...
+                [RSP] → Current top of stack
+
+                ════════════════════════════════════════════════════════════════════════════════
+            </div>
+
+            <h3>The Vulnerability: Buffer Overflow Mechanics</h3>
+
+            <p>
+                Now we reach the heart of the matter—what happens when you violate a buffer's boundary.
+                This is not an abstract concept. This is the precise mechanism that has powered
+                exploitation for decades, and understanding it deeply is the first step to both
+                attacking and defending systems.
+            </p>
+
+            <p>
+                Consider this vulnerable function:
+            </p>
+
+            <div class="code-block">
+                void vulnerable_function(char *user_input) {
+                char buffer[10]; // 10 bytes allocated on stack
+                int secret = 42; // Another local variable
+
+                strcpy(buffer, user_input); // DANGER: No bounds checking!
+
+                printf("Buffer: %s\n", buffer);
+                printf("Secret: %d\n", secret);
+                }
+            </div>
+
+            <p>
+                The stack frame for this function looks like this before the overflow:
+            </p>
+
+            <div class="code-block">
+                BEFORE OVERFLOW (user_input = "AAAA"):
+                ═══════════════════════════════════════
+
+                0x7FFE0FF8: [Return Address] ← RBP + 8 │ Points to caller
+                0x7FFE0FF0: [Saved RBP: 0x7FFE1050] ← RBP + 0 │ Caller's frame ptr
+                0x7FFE0FEC: [secret = 0x0000002A] ← RBP - 4 │ int secret (42)
+                0x7FFE0FE2: [buffer[0-9]] ← RBP - 14 │ 10-byte buffer
+                ┌─────────────────────────────────┐
+                Content: │'A'│'A'│'A'│'A'│'\0'│ 0 │ 0 │ 0 │ 0 │ 0 │
+                └─────────────────────────────────┘
+                [0] [1] [2] [3] [4] [5] [6] [7] [8] [9]
+
+                RSP ───────► 0x7FFE0FD0 (somewhere below)
+
+                Stack is INTACT. All values correct. Program behaves normally.
+            </div>
+
+            <p>
+                Now let's see what happens when we write 20 bytes into a 10-byte buffer. The input is
+                20 'A' characters (0x41 in hex):
+            </p>
+
+            <div class="code-block">
+                DURING OVERFLOW (user_input = "AAAAAAAAAAAAAAAAAAAA" - 20 bytes):
+                ═══════════════════════════════════════════════════════════════
+
+                strcpy() copies byte by byte, starting at buffer[0]:
+
+                Byte 1: buffer[0] = 'A' ← Within bounds
+                Byte 2: buffer[1] = 'A' ← Within bounds
+                Byte 3: buffer[2] = 'A' ← Within bounds
+                Byte 4: buffer[3] = 'A' ← Within bounds
+                Byte 5: buffer[4] = 'A' ← Within bounds
+                Byte 6: buffer[5] = 'A' ← Within bounds
+                Byte 7: buffer[6] = 'A' ← Within bounds
+                Byte 8: buffer[7] = 'A' ← Within bounds
+                Byte 9: buffer[8] = 'A' ← Within bounds
+                Byte 10: buffer[9] = 'A' ← LAST VALID BYTE
+                ─────────────────────────────────────────────
+                Byte 11: buffer[10] = 'A' ← OVERFLOW BEGINS! Overwrites secret[0]
+                Byte 12: buffer[11] = 'A' ← Overwrites secret[1]
+                Byte 13: buffer[12] = 'A' ← Overwrites secret[2]
+                Byte 14: buffer[13] = 'A' ← Overwrites secret[3] - secret destroyed
+                Byte 15: buffer[14] = 'A' ← Overwrites padding/alignment
+                Byte 16: buffer[15] = 'A' ← Overwrites padding/alignment
+                Byte 17: buffer[16] = 'A' ← OVERWRITES SAVED RBP byte 0
+                Byte 18: buffer[17] = 'A' ← OVERWRITES SAVED RBP byte 1
+                Byte 19: buffer[18] = 'A' ← OVERWRITES SAVED RBP byte 2
+                Byte 20: buffer[19] = 'A' ← OVERWRITES SAVED RBP byte 3
+                Byte 21: '\0' ← Null terminator lands in saved RBP
+            </div>
+
+            <div class="code-block">
+                AFTER 20-BYTE OVERFLOW:
+                ═══════════════════════════════════════
+
+                0x7FFE0FF8: [Return Address] ← RBP + 8 │ STILL INTACT (barely)
+                0x7FFE0FF0: [0x00414141] ← RBP + 0 │ CORRUPTED! Was 0x7FFE1050
+                │ Now contains 'AAA\0'
+                0x7FFE0FEC: [0x41414141] ← RBP - 4 │ CORRUPTED! Was 42
+                │ Now contains 'AAAA'
+                0x7FFE0FE2: [AAAAAAAAAA] ← RBP - 14 │ Buffer full of 'A'
+
+                Damage Assessment:
+                ──────────────────
+                ✗ secret variable: DESTROYED (now 0x41414141 = 1094795585)
+                ✗ saved RBP: CORRUPTED (stack trace will be broken)
+                ✓ return address: STILL INTACT (overflow wasn't long enough)
+
+                The function may still "work" but produces wrong results.
+                When it tries to return, the corrupted RBP causes problems.
+            </div>
+
+            <p>
+                But what if we go further? What if we write <strong>26 bytes</strong> or more? Let's
+                trace the exact moment we achieve code execution:
+            </p>
+
+            <div class="code-block">
+                CATASTROPHIC OVERFLOW (user_input = 26 bytes):
+                ═══════════════════════════════════════════════
+
+                Input: "AAAAAAAAAAAAAAAAAAAA" + "\xef\xbe\xad\xde\x00\x00"
+                (20 'A's) (address 0x0000DEADBEEF)
+
+                Bytes 1-10: Fill buffer[0-9] ← Buffer destroyed
+                Bytes 11-14: Overwrite secret ← Local var destroyed
+                Bytes 15-16: Overwrite padding ← Alignment destroyed
+                Bytes 17-24: Overwrite saved RBP ← Frame pointer destroyed
+                Bytes 25-32: OVERWRITE RETURN ADDRESS ← !!!! RIP CONTROL !!!!
+
+                ═══════════════════════════════════════════════
+
+                0x7FFE0FF8: [0x0000DEADBEEF] ← RBP + 8 │ RETURN ADDRESS HIJACKED!
+                │ Was: Address in caller
+                │ Now: 0xDEADBEEF
+                0x7FFE0FF0: [0x4141414141414141] ← RBP + 0 │ Saved RBP obliterated
+                0x7FFE0FEC: [0x41414141] ← RBP - 4 │ secret obliterated
+                0x7FFE0FE2: [AAAAAAAAAA] ← RBP - 14 │ buffer obliterated
+            </div>
+
+            <div class="warn-banner">
+                <strong>THE MOMENT OF EXPLOITATION:</strong> When vulnerable_function() executes
+                its <code>RET</code> instruction, the CPU will pop the value at [RSP] into RIP
+                and jump to that address. But [RSP] now contains <code>0xDEADBEEF</code>—an address
+                we control! The CPU will attempt to execute instructions at our chosen address.
+                If we point it at our shellcode, we have complete code execution.
+            </div>
+
+            <div class="code-block">
+                THE RET INSTRUCTION - WHERE EXPLOITATION HAPPENS:
+                ══════════════════════════════════════════════════
+
+                ; Function epilogue executes:
+                leave ; MOV RSP, RBP; POP RBP (RBP is corrupted anyway)
+                ret ; POP RIP (!!!)
+
+                ; RET does this:
+                ; 1. RIP = [RSP] ← Loads 0xDEADBEEF into instruction pointer
+                ; 2. RSP = RSP + 8 ← Adjusts stack
+                ; 3. Execution continues at RIP ← CPU jumps to 0xDEADBEEF!
+
+                BEFORE RET: AFTER RET:
+                ─────────── ──────────
+                RIP = addr of 'ret' instr RIP = 0xDEADBEEF
+                RSP → [0xDEADBEEF] RSP = (old RSP + 8)
+
+                The CPU is now executing at address 0xDEADBEEF.
+                If we put shellcode there, we win.
+                If it's an invalid address, we crash with SIGSEGV.
+                Either way, we've demonstrated control over execution flow.
+            </div>
+
+            <p>
+                This is the anatomy of a stack-based buffer overflow. The geometry is deterministic:
+                local buffers are below the return address, strcpy has no bounds checking, and the
+                RET instruction blindly trusts the stack. Every modern mitigation—ASLR, stack canaries,
+                NX bit, SafeSEH—exists because this fundamental vulnerability is woven into the
+                architecture itself. In Module 05, we will write actual exploit code that leverages
+                this exact technique.
+            </p>
+
+            <!-- ═══════════════════════════════════════════════════════════════════════
+         PART VI: STRUCT PADDING (THE HIDDEN BYTES)
+    ════════════════════════════════════════════════════════════════════════ -->
+
+            <h2>Part VI: Struct Padding (The Hidden Bytes)</h2>
+
+            <p>
+                You declare a struct with two fields. You calculate the size in your head. You're
+                wrong. The compiler has inserted hidden bytes that you can't see in your source
+                code. This is <strong>structure padding</strong>, and if you don't understand it,
+                your memory offsets will be wrong, your game hacks will fail, and your reverse
+                engineering will produce garbage.
+            </p>
+
+            <h3>Data Alignment: Why the CPU Hates Odd Addresses</h3>
+
+            <p>
+                Modern CPUs are not byte-addressed machines in practice. They fetch memory in
+                <strong>aligned chunks</strong>—typically 4 or 8 bytes at a time from addresses
+                that are multiples of that size. When data is properly aligned, the CPU can fetch
+                it in a single memory access. When data is <em>misaligned</em>, everything breaks.
+            </p>
+
+            <div class="real-talk">
+                An <code>int</code> (4 bytes) should live at an address divisible by 4 (0x1000,
+                0x1004, 0x1008...). A <code>double</code> (8 bytes) should live at an address
+                divisible by 8. A <code>char</code> can live anywhere—its alignment requirement
+                is just 1 byte.
+            </div>
+
+            <p>
+                What happens if you violate alignment? It depends on the architecture:
+            </p>
+
+            <div class="code-block">
+                ALIGNMENT VIOLATION CONSEQUENCES:
+                ═════════════════════════════════════════════════════════════════
+
+                ┌──────────────────────────────────────────────────────────────┐
+                │ ARCHITECTURE │ CONSEQUENCE OF MISALIGNED ACCESS │
+                ├──────────────────────────────────────────────────────────────┤
+                │ x86 / x86-64 │ Hardware handles it (SLOW - 2x to 100x) │
+                │ │ CPU internally does 2 fetches + merge │
+                ├──────────────────────────────────────────────────────────────┤
+                │ ARM (strict) │ SIGBUS / Hardware Exception / CRASH │
+                │ │ Program terminates immediately │
+                ├──────────────────────────────────────────────────────────────┤
+                │ SPARC │ Bus Error - Program dies │
+                ├──────────────────────────────────────────────────────────────┤
+                │ Some RISC │ Undefined behavior - May give wrong data │
+                └──────────────────────────────────────────────────────────────┘
+
+                Even on x86 where it's "allowed", misaligned access destroys cache
+                performance and can cause data to span cache lines. The performance
+                hit is severe in tight loops.
+            </div>
+
+            <p>
+                To avoid these penalties, the compiler automatically inserts <strong>padding
+                    bytes</strong> between struct members to ensure each member is properly aligned.
+                These padding bytes exist in memory but are invisible in your source code.
+            </p>
+
+            <h3>The Classic Example: Why sizeof Is Not What You Expect</h3>
+
+            <p>
+                Consider this simple struct:
+            </p>
+
+            <div class="code-block">
+                struct Example {
+                char a; // 1 byte
+                int b; // 4 bytes
+                };
+
+                // Naive calculation: 1 + 4 = 5 bytes
+                // Actual sizeof(struct Example) = ???
+            </div>
+
+            <p>
+                Let's trace through what the compiler actually does:
+            </p>
+
+            <div class="code-block">
+                MEMORY LAYOUT OF struct Example:
+                ═════════════════════════════════════════════════════════════════
+
+                WITHOUT PADDING (hypothetical - would cause misalignment):
+                ─────────────────────────────────────────────────────────────────
+
+                Address: 0x00 0x01 0x02 0x03 0x04
+                ┌──────┬──────┬──────┬──────┬──────┐
+                │ a │ b │ b │ b │ b │
+                │(char)│(int byte 0)| | |
+                └──────┴──────┴──────┴──────┴──────┘
+
+                Problem: 'b' starts at offset 0x01, which is NOT divisible by 4.
+                This is a misaligned 4-byte access!
+
+                ═════════════════════════════════════════════════════════════════
+
+                WITH PADDING (what the compiler actually does):
+                ─────────────────────────────────────────────────────────────────
+
+                Address: 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07
+                ┌──────┬──────┬──────┬──────┬──────┬──────┬──────┬──────┐
+                │ a │ PAD │ PAD │ PAD │ b │ b │ b │ b │
+                │(char)│ │ │ │(int, aligned to offset 4) │
+                └──────┴──────┴──────┴──────┴──────┴──────┴──────┴──────┘
+
+                Member 'a': offset 0x00, size 1 (alignment requirement: 1)
+                Padding: offset 0x01, size 3 (inserted by compiler)
+                Member 'b': offset 0x04, size 4 (alignment requirement: 4) ✓
+
+                Total size: 8 bytes (NOT 5!)
+
+                ═════════════════════════════════════════════════════════════════
+
+                sizeof(struct Example) == 8
+                offsetof(struct Example, a) == 0
+                offsetof(struct Example, b) == 4
+            </div>
+
+            <div class="real-talk">
+                The 3 bytes of padding between 'a' and 'b' are <strong>invisible</strong> in your
+                source code. They don't show up when you print struct members. But they absolutely
+                exist in memory, and they affect the offset of 'b' from the struct's base address.
+            </div>
+
+            <h3>The Alignment Rule: Every Member Must Be Self-Aligned</h3>
+
+            <p>
+                The compiler follows a simple rule: every struct member must be placed at an offset
+                that is a multiple of its alignment requirement. The alignment requirement is
+                typically the size of the type (with some exceptions for very large types).
+            </p>
+
+            <div class="code-block">
+                COMMON TYPE ALIGNMENTS (x64 Linux/Windows):
+                ═════════════════════════════════════════════════════════════════
+
+                TYPE │ SIZE │ ALIGNMENT │ VALID OFFSETS
+                ───────────────┼─────────┼───────────┼────────────────────────────
+                char │ 1 byte │ 1 byte │ 0, 1, 2, 3, 4, 5, 6, 7, ...
+                short │ 2 bytes │ 2 bytes │ 0, 2, 4, 6, 8, 10, ...
+                int │ 4 bytes │ 4 bytes │ 0, 4, 8, 12, 16, 20, ...
+                float │ 4 bytes │ 4 bytes │ 0, 4, 8, 12, 16, 20, ...
+                long (Linux) │ 8 bytes │ 8 bytes │ 0, 8, 16, 24, 32, ...
+                long (Windows) │ 4 bytes │ 4 bytes │ 0, 4, 8, 12, 16, 20, ...
+                long long │ 8 bytes │ 8 bytes │ 0, 8, 16, 24, 32, ...
+                double │ 8 bytes │ 8 bytes │ 0, 8, 16, 24, 32, ...
+                pointer (x64) │ 8 bytes │ 8 bytes │ 0, 8, 16, 24, 32, ...
+                pointer (x86) │ 4 bytes │ 4 bytes │ 0, 4, 8, 12, 16, 20, ...
+            </div>
+
+            <h3>Complex Struct Example: Maximum Padding Chaos</h3>
+
+            <p>
+                Let's analyze a more complex struct to see how padding can spiral out of control:
+            </p>
+
+            <div class="code-block">
+                struct Mess {
+                char a; // 1 byte
+                double b; // 8 bytes
+                char c; // 1 byte
+                int d; // 4 bytes
+                char e; // 1 byte
+                };
+
+                // Naive size: 1 + 8 + 1 + 4 + 1 = 15 bytes
+                // Actual size: ???
+            </div>
+
+            <div class="code-block">
+                MEMORY LAYOUT OF struct Mess:
+                ═════════════════════════════════════════════════════════════════
+
+                Offset Content Size Reason
+                ────── ──────────── ──── ───────────────────────────────────
+                0x00 char a 1 Starts at 0, alignment 1 ✓
+                0x01 PADDING 7 Next member (double) needs alignment 8
+                0x08 double b 8 Offset 8 is divisible by 8 ✓
+                0x10 char c 1 Starts at 16, alignment 1 ✓
+                0x11 PADDING 3 Next member (int) needs alignment 4
+                0x14 int d 4 Offset 20 is divisible by 4 ✓
+                0x18 char e 1 Starts at 24, alignment 1 ✓
+                0x19 PADDING 7 TAIL PADDING for array alignment
+
+                ──────────────────────────────────────────────────────────────────
+                TOTAL: 32 bytes (not 15!)
+
+                ═════════════════════════════════════════════════════════════════
+
+                VISUAL LAYOUT:
+
+                0x00 ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+                │ a │ PAD │ PAD │ PAD │ PAD │ PAD │ PAD │ PAD │
+                0x08 ├─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┤
+                │ double b │
+                0x10 ├─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┤
+                │ c │ PAD │ PAD │ PAD │ int d │
+                0x18 ├─────┴─────┴─────┴─────┼─────┬─────┬─────┬─────┤
+                │ e │ PAD │ PAD │ PAD │ PAD │ PAD │ PAD │ PAD │
+                0x20 └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+
+                Data: 1 + 8 + 1 + 4 + 1 = 15 bytes
+                Padding: 7 + 3 + 7 = 17 bytes
+                Total: = 32 bytes
+
+                MORE THAN HALF THE STRUCT IS WASTED PADDING!
+            </div>
+
+            <div class="real-talk">
+                <strong>Tail Padding:</strong> The struct's total size must be a multiple of its
+                largest member's alignment. Since <code>double</code> has alignment 8, the struct
+                must have size divisible by 8. This ensures arrays of this struct maintain alignment.
+                That's why we have 7 bytes of padding at the end.
+            </div>
+
+            <h3>Optimized Layout: Order Matters</h3>
+
+            <p>
+                By reordering the same members, we can dramatically reduce padding:
+            </p>
+
+            <div class="code-block">
+                struct Optimized {
+                double b; // 8 bytes - largest first
+                int d; // 4 bytes
+                char a; // 1 byte
+                char c; // 1 byte
+                char e; // 1 byte
+                // 1 byte padding (not 17!)
+                };
+
+                // sizeof(struct Optimized) == 16 (half of struct Mess!)
+
+                MEMORY LAYOUT:
+                ═════════════════════════════════════════════════════════════════
+
+                0x00 ┌─────────────────────────────────────────────────────────┐
+                │ double b │
+                0x08 ├─────────────────────────────┬─────┬─────┬─────┬─────────┤
+                │ int d │ a │ c │ e │ PAD │
+                0x10 └─────────────────────────────┴─────┴─────┴─────┴─────────┘
+
+                Data: 8 + 4 + 1 + 1 + 1 = 15 bytes
+                Padding: 1 byte
+                Total: 16 bytes (50% smaller than struct Mess!)
+            </div>
+
+            <h3>Why This Matters for Game Hacking</h3>
+
+            <p>
+                In game hacking, you're reading memory from another process. You find a pattern
+                that looks like a player struct, and you try to calculate offsets to read health,
+                ammo, position. If you ignore padding, every offset after the first padded member
+                will be <strong>completely wrong</strong>.
+            </p>
+
+            <div class="code-block">
+                GAME HACKING SCENARIO:
+                ═════════════════════════════════════════════════════════════════
+
+                You reverse engineer what looks like a Player struct:
+
+                struct Player {
+                char status; // 0x00: 1 byte (alive, dead, spectating)
+                int health; // 0x??: 4 bytes
+                int armor; // 0x??: 4 bytes
+                double pos_x; // 0x??: 8 bytes
+                double pos_y; // 0x??: 8 bytes
+                double pos_z; // 0x??: 8 bytes
+                };
+
+                WRONG OFFSET CALCULATION (ignoring padding):
+                ─────────────────────────────────────────────
+                status: 0x00 ✓
+                health: 0x01 ✗ WRONG! (misaligned, also wrong offset)
+                armor: 0x05 ✗ WRONG!
+                pos_x: 0x09 ✗ WRONG!
+                pos_y: 0x11 ✗ WRONG!
+                pos_z: 0x19 ✗ WRONG!
+
+                CORRECT OFFSET CALCULATION (with padding):
+                ─────────────────────────────────────────────
+                status: 0x00 (1 byte)
+                PADDING: 0x01 (3 bytes - align health to 4)
+                health: 0x04 (4 bytes)
+                armor: 0x08 (4 bytes)
+                PADDING: 0x0C (4 bytes - align pos_x to 8)
+                pos_x: 0x10 (8 bytes)
+                pos_y: 0x18 (8 bytes)
+                pos_z: 0x20 (8 bytes)
+
+                sizeof(Player) = 0x28 = 40 bytes
+
+                If you read health from offset 0x01, you get garbage.
+                If you read health from offset 0x04, you get the real value.
+            </div>
+
+            <div class="warn-banner">
+                <strong>CRITICAL FOR GAME HACKERS:</strong> Always verify struct layouts with a
+                debugger or memory scanner. Never assume offsets from source code alone. Different
+                compilers, platforms, and compilation flags can produce different padding. When in
+                doubt, dump memory and calculate offsets empirically.
+            </div>
+
+            <h3>Forcing Specific Layouts</h3>
+
+            <p>
+                Sometimes you need to match an external binary layout exactly (game hacking, file
+                formats, network protocols). You can use compiler attributes to control padding:
+            </p>
+
+            <div class="code-block">
+                // GCC/Clang: Pack struct with no padding
+                struct __attribute__((packed)) NoPadding {
+                char a;
+                int b;
+                }; // sizeof == 5 (WARNING: causes misaligned access!)
+
+                // MSVC equivalent
+                #pragma pack(push, 1)
+                struct NoPadding {
+                char a;
+                int b;
+                };
+                #pragma pack(pop)
+
+                // Specify exact alignment requirement
+                struct __attribute__((aligned(16))) AlignedStruct {
+                int x;
+                }; // Struct will be 16-byte aligned in memory
+            </div>
+
+            <div class="real-talk">
+                <strong>Warning:</strong> Packed structs cause misaligned access. On x86, this is
+                slow. On ARM, it can crash. Only use packed structs when you must match an external
+                format. For internal data structures, let the compiler pad naturally.
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════════════
+         FINAL WORDS
+    ════════════════════════════════════════════════════════════════════════ -->
+
+            <h2>Final Words: Memory Mastery Is God Mode</h2>
+
+            <p>
+                You've now seen beneath the surface. Variables are addresses. Types are lies the
+                compiler maintains. The stack is a battlefield where every overflow is an opportunity.
+                Padding hides in your structs, invisible until it breaks your offset calculations.
+            </p>
+
+            <p>
+                This is not academic knowledge. Every concept in this module maps directly to
+                real-world exploitation, game hacking, and reverse engineering:
+            </p>
+
+            <div class="code-block">
+                WHAT YOU LEARNED WHAT YOU CAN DO WITH IT
+                ════════════════════════════════════════════════════════════════════════════
+
+                Virtual Memory Layout → Understand where to find code, data,
+                heap, and stack in any process
+
+                Pointer Arithmetic → Navigate complex data structures,
+                walk linked lists, parse buffers
+
+                x64 Registers → Read disassembly, track values in
+                debuggers, understand calling conventions
+
+                Assembly Instructions → Reverse engineer binaries, write
+                shellcode, patch executables
+
+                Stack Frame Anatomy → Exploit buffer overflows, craft
+                ROP chains, manipulate return addresses
+
+                Struct Padding → Calculate correct offsets for game
+                hacking, match binary formats exactly
+            </div>
+
+            <p>
+                Memory is the substrate on which all software runs. Control memory, and you
+                control the machine. Misunderstand memory, and the machine controls you—usually
+                by crashing in ways you can't debug.
+            </p>
+
+            <p>
+                The foundation is set. Module 02 begins the destruction.
+            </p>
+
+            <div class="warn-banner">
+                <strong>REMEMBER:</strong> Knowledge of exploitation is dual-use. These techniques
+                can be used to break systems or to defend them. The difference is authorization
+                and intent. Hack responsibly.
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════════════
+         NAVIGATION FOOTER
+    ════════════════════════════════════════════════════════════════════════ -->
+
+            <div style="margin-top: 60px; padding: 30px 0; border-top: 3px solid #ff0000; text-align: center;">
+                <p
+                    style="margin-bottom: 20px; color: #888; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">
+                    Continue Your Training
+                </p>
+                <a href="module_02.html" class="nav-item"
+                    style="display: inline-block; padding: 15px 40px; font-size: 18px; letter-spacing: 3px; text-transform: uppercase;">
+                    &gt;&gt; PROCEED TO MODULE 02: UNMAKING &gt;&gt;
+                </a>
+            </div>
+
+</body>
+
+</html>
